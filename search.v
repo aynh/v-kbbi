@@ -1,4 +1,4 @@
-module scraper
+module main
 
 import net.html
 import net.http
