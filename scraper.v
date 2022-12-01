@@ -33,8 +33,13 @@ pub fn search_word(word string) ![]KbbiResult {
 	document := html.parse(response.body)
 	document_tags := document.get_tags()
 
-	if document_tags.any(it.content.contains('Entri tidak ditemukan.')) {
-		return error('word `${word}` not found')
+	for tag in document_tags {
+		content := tag.content
+		if content.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
+			return error("today's search limit reached")
+		} else if content.contains('Entri tidak ditemukan.') {
+			return error('word `${word}` not found')
+		}
 	}
 
 	container_tags := document_tags.filter(it.name == 'ol'
