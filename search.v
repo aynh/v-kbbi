@@ -27,8 +27,14 @@ pub struct KbbiEntryKind {
 	description  string
 }
 
-pub fn search_word(word string) ![]KbbiResult {
-	response := http.get('https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}')!
+pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
+	response := http.fetch(
+		method: .get
+		url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
+		cookies: {
+			application_cookie: c.application_cookie
+		}
+	)!
 
 	document := html.parse(response.body)
 	document_tags := document.get_tags()
@@ -81,6 +87,10 @@ pub fn search_word(word string) ![]KbbiResult {
 	})
 }
 
+pub fn entry(word string) ![]KbbiResult {
+	return KbbiClient{''}.entry(word)!
+}
+
 fn parse_entries(container_tag &html.Tag) ![]KbbiEntry {
 	return container_tag.get_tags('li').map(parse_entry(it)!)
 }
@@ -90,7 +100,7 @@ fn parse_entry(li_tag &html.Tag) !KbbiEntry {
 	if description == '&rarr;' { // &rarr; is →
 		suggestion := li_tag.get_tags('a')[0].content.trim_space()
 		// we will replace {} placeholder with actual word
-		// when the caller (fn search_word) propagates this error
+		// when the caller (fn entry) propagates this error
 		return error('word `{}` not found, did you mean ${suggestion}?')
 	}
 
