@@ -15,14 +15,7 @@ fn main() {
 	c := create_client() or { KbbiClient{''} }
 
 	if results := c.entry(os.args[1]) {
-		for i, result in results {
-			print(format_result(result))
-			if i < (results.len - 1) {
-				print('\n\n')
-			} else {
-				print('\n')
-			}
-		}
+		print(results.map(format_result).join('\n'))
 	} else {
 		println(err)
 		exit(1)

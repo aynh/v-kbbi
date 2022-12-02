@@ -1,27 +1,24 @@
 module format
 
-import client { KbbiEntry, KbbiResult }
+import arrays { map_indexed }
+import client { KbbiEntry, KbbiEntryExample, KbbiResult }
 import strings
 import term
 
-pub fn format_result(r KbbiResult) string {
+pub fn format_result(e KbbiResult) string {
 	mut builder := strings.new_builder(0)
 
-	builder.writeln('  ' + term.bold(r.title))
+	builder.writeln('  ' + term.bold(e.title))
 
 	entry_prefix := '   '
-	entries := r.entries.map(format_entry)
-	if entries.len == 1 {
-		builder.write_string(entry_prefix + entries[0])
-	} else if entries.len > 1 {
-		// add numbering if entries count is greater than 1
-		for i, entry in entries {
-			builder.write_string('${entry_prefix}${i + 1}. ${entry}')
-
-			if i < (entries.len - 1) {
-				builder.write_string('\n')
-			}
-		}
+	if e.entries.len == 1 {
+		builder.writeln(entry_prefix + format_entry(e.entries[0]))
+	} else if e.entries.len > 1 {
+		entries := e.entries.map(format_entry)
+		numbered_entries := map_indexed(entries, fn (i int, entry string) string {
+			return '${i + 1}. ${entry}'
+		})
+		builder.writeln(numbered_entries.map(entry_prefix + it).join('\n'))
 	}
 
 	return builder.str()
@@ -30,25 +27,28 @@ pub fn format_result(r KbbiResult) string {
 fn format_entry(e KbbiEntry) string {
 	mut builder := strings.new_builder(0)
 
-	for kind in e.kind {
-		builder.write_string(term.italic(term.red(kind.abbreviation)) + ' ')
-	}
+	kinds := e.kind.map(it.abbreviation + ' ').join('')
+	builder.write_string(term.italic(term.red(kinds)))
 
 	builder.write_string(e.description)
 
 	if e.examples.len > 0 {
 		builder.write_string(':')
-		for i, example in e.examples {
-			builder.write_string(' ' + term.italic(term.dim(example.value)))
 
-			if example.description != '' {
-				builder.write_string(' ' + term.red(term.italic(term.dim(example.description))))
-			}
+		examples := e.examples.map(format_entry_example).join(';')
+		builder.write_string(term.italic(term.dim(examples)))
+	}
 
-			if i < (e.examples.len - 1) {
-				builder.write_string(term.dim(';'))
-			}
-		}
+	return builder.str()
+}
+
+fn format_entry_example(e KbbiEntryExample) string {
+	mut builder := strings.new_builder(0)
+
+	builder.write_string(' ' + e.value)
+
+	if e.description != '' {
+		builder.write_string(' ' + term.red(e.description))
 	}
 
 	return builder.str()
