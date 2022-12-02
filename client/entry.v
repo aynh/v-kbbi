@@ -4,6 +4,7 @@ import net.html
 import net.http
 
 pub struct KbbiResult {
+pub:
 	title            string
 	word             string
 	nonstandard_word string
@@ -12,17 +13,20 @@ pub struct KbbiResult {
 }
 
 pub struct KbbiEntry {
+pub:
 	description string
 	examples    []KbbiEntryExample
 	kind        []KbbiEntryKind
 }
 
 pub struct KbbiEntryExample {
+pub:
 	value       string
 	description string
 }
 
 pub struct KbbiEntryKind {
+pub:
 	abbreviation string
 	description  string
 }
