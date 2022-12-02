@@ -1,6 +1,7 @@
 module main
 
 import os
+import client { KbbiClient, new_client_from_login }
 
 fn create_client() ?KbbiClient {
 	return new_client_from_login(

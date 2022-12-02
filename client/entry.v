@@ -1,4 +1,4 @@
-module main
+module client
 
 import net.html
 import net.http
