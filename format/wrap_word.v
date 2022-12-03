@@ -5,10 +5,10 @@ import term
 
 [params]
 struct WrapWordConfig {
-	s                string
-	prefix           string
-	indent		 int
-	max_width        int
+	s         string
+	prefix    string
+	indent    int
+	max_width int
 }
 
 fn wrap_word(c WrapWordConfig) string {
