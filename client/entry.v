@@ -2,6 +2,7 @@ module client
 
 import net.html
 import net.http
+import time
 
 pub struct KbbiResult {
 pub:
@@ -32,15 +33,35 @@ pub:
 }
 
 pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
-	response := http.fetch(
-		method: .get
-		url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
-		cookies: {
-			application_cookie: c.application_cookie
-		}
-	)!
+	cache_db := c.cache_db()!
 
-	document := html.parse(response.body)
+	cached_response := sql cache_db {
+		select from CacheEntry where key == word
+	}
+	response := if cached_response.len == 1 {
+		cached_response[0].value
+	} else {
+		tmp := http.fetch(
+			method: .get
+			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
+			cookies: {
+				application_cookie: c.application_cookie
+			}
+		)!.body
+
+		cache := CacheEntry{
+			key: word
+			value: tmp
+			created_at: time.now()
+		}
+		sql cache_db {
+			insert cache into CacheEntry
+		}
+
+		tmp
+	}
+
+	document := html.parse(response)
 	document_tags := document.get_tags()
 
 	for tag in document_tags {
