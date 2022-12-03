@@ -2,6 +2,7 @@ module format
 
 import arrays { map_indexed }
 import client { KbbiEntry, KbbiEntryExample, KbbiResult }
+import math
 import strings
 import term
 
@@ -26,7 +27,7 @@ pub fn format_result(e KbbiResult) string {
 
 		wrapped_entries := numbered_entries.map(wrap_word(
 			s: it
-			indent: 3
+			indent: 2 + math.count_digits(it.before('.').int())
 			prefix: entry_prefix
 			max_width: terminal_width
 		)).join('\n')
