@@ -10,15 +10,27 @@ pub fn format_result(e KbbiResult) string {
 
 	builder.writeln('  ' + term.bold(e.title))
 
+	terminal_width, _ := term.get_terminal_size()
 	entry_prefix := '   '
 	if e.entries.len == 1 {
-		builder.writeln(entry_prefix + format_entry(e.entries[0]))
+		builder.writeln(wrap_word(
+			s: format_entry(e.entries[0])
+			prefix: entry_prefix
+			max_width: terminal_width
+		))
 	} else if e.entries.len > 1 {
 		entries := e.entries.map(format_entry)
 		numbered_entries := map_indexed(entries, fn (i int, entry string) string {
 			return '${i + 1}. ${entry}'
 		})
-		builder.writeln(numbered_entries.map(entry_prefix + it).join('\n'))
+
+		wrapped_entries := numbered_entries.map(wrap_word(
+			s: it
+			indent: 3
+			prefix: entry_prefix
+			max_width: terminal_width
+		)).join('\n')
+		builder.writeln(wrapped_entries)
 	}
 
 	return builder.str()
