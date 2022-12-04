@@ -2,6 +2,7 @@ module client
 
 import net.html
 import net.http
+import spinner
 import time
 
 pub struct KbbiResult {
@@ -33,6 +34,12 @@ pub:
 }
 
 pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
+	shared spinner_state := spinner.State{}
+	spinner_handle := spawn spinner.new_spinner(shared spinner_state)
+	defer {
+		spinner_handle.wait()
+	}
+
 	cache_db := c.cache_db()!
 
 	cached_response := sql cache_db {
@@ -59,6 +66,10 @@ pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
 		}
 
 		tmp
+	}
+
+	lock spinner_state {
+		spinner_state.done = true
 	}
 
 	document := html.parse(response)
