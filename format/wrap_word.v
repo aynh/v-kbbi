@@ -30,7 +30,7 @@ fn wrap_word(c WrapWordConfig) string {
 
 			char_count = 0
 			if c.indent > 0 {
-				builder.write_string(strings.repeat(` `, c.indent))
+				builder.write_string(` `.repeat(c.indent))
 				char_count += c.indent
 			}
 		}
