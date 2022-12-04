@@ -3,7 +3,6 @@ module client
 import client.cache
 import net.html
 import net.http
-import spinner
 
 pub struct KbbiResult {
 pub:
@@ -62,12 +61,6 @@ pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
 }
 
 fn (c KbbiClient) fetch_entry(word string) !string {
-	shared spinner_state := spinner.State{}
-	spinner_handle := spawn spinner.new_spinner(shared spinner_state)
-	defer {
-		spinner_handle.wait()
-	}
-
 	cookie := c.application_cookie
 	response := cache.get_or_init(c.cache_db, word, fn [cookie] (key string) !string {
 		return http.fetch(
@@ -78,10 +71,6 @@ fn (c KbbiClient) fetch_entry(word string) !string {
 			}
 		)!.body
 	})!
-
-	lock spinner_state {
-		spinner_state.done = true
-	}
 
 	return response
 }

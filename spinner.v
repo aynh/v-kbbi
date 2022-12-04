@@ -8,7 +8,7 @@ pub mut:
 	done bool
 }
 
-pub fn new_spinner(shared state State) {
+pub fn create(shared state State) {
 	// table flip spinner
 	chars := "___-``'´-___".runes()
 	interval := 70000000 // 70ms in ns

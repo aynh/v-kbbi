@@ -4,6 +4,7 @@ import cli
 import client
 import format { format_result }
 import os
+import spinner
 import term
 import v.vmod
 
@@ -40,6 +41,9 @@ fn main() {
 		]
 		required_args: 1
 		execute: fn (cmd cli.Command) ! {
+			shared spinner_state := spinner.State{}
+			spinner_handle := spawn spinner.create(shared spinner_state)
+
 			no_cache := cmd.flags.get_bool('no-cache')!
 			c := create_client(use_cache: !no_cache) or { client.new_client(use_cache: !no_cache)! }
 
@@ -56,6 +60,11 @@ fn main() {
 			mut out := results.join('\n')
 			if !(cmd.flags.get_bool('color')! && term.can_show_color_on_stdout()) {
 				out = term.strip_ansi(out)
+			}
+
+			lock spinner_state {
+				spinner_state.done = true
+				spinner_handle.wait()
 			}
 
 			print(out)
