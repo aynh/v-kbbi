@@ -21,6 +21,16 @@ fn main() {
 		usage: '<word>...'
 		description: vm.description
 		version: vm.version
+		posix_mode: true
+		flags: [
+			cli.Flag{
+				flag: cli.FlagType.bool
+				name: 'color'
+				description: 'Colors the output.'
+				global: true
+				default_value: ['true']
+			},
+		]
 		required_args: 1
 		execute: fn (cmd cli.Command) ! {
 			c := create_client() or { client.new_client()! }
@@ -36,7 +46,7 @@ fn main() {
 			}
 
 			mut out := results.join('\n')
-			if !term.can_show_color_on_stdout() {
+			if !(cmd.flags.get_bool('color')! && term.can_show_color_on_stdout()) {
 				out = term.strip_ansi(out)
 			}
 
