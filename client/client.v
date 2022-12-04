@@ -17,12 +17,24 @@ pub struct KbbiClient {
 	cache_db           sqlite.DB
 }
 
-pub fn new_client() !KbbiClient {
-	return KbbiClient{'', cache.cache_db()!}
+[params]
+pub struct KbbiClientConfig {
+	use_cache bool = true
+}
+
+pub fn new_client(c KbbiClientConfig) !KbbiClient {
+	cache_db := if c.use_cache {
+		cache.cache_db()!
+	} else {
+		sqlite.DB{}
+	}
+
+	return KbbiClient{'', cache_db}
 }
 
 [params]
 pub struct KbbiClientLoginConfig {
+	base     KbbiClientConfig
 	username string
 	password string
 }
@@ -55,7 +67,12 @@ pub fn new_client_from_login(c KbbiClientLoginConfig) !KbbiClient {
 
 	for cookie in response.cookies() {
 		if cookie.name == client.application_cookie {
-			return KbbiClient{cookie.value, cache.cache_db()!}
+			client := new_client(c.base)!
+
+			return KbbiClient{
+				...client
+				application_cookie: cookie.value
+			}
 		}
 	}
 

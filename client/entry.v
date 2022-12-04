@@ -69,11 +69,16 @@ fn (c KbbiClient) fetch_entry(word string) !string {
 		spinner_handle.wait()
 	}
 
-	cached_response := sql c.cache_db {
-		select from CacheEntry where key == word
+	cached_response := if c.cache_db.is_open {
+		tmp := sql c.cache_db {
+			select from CacheEntry where key == word limit 1
+		}
+		tmp
+	} else {
+		CacheEntry{}
 	}
-	response := if cached_response.len == 1 {
-		cached_response[0].value
+	response := if cached_response != CacheEntry{} {
+		cached_response.value
 	} else {
 		tmp := http.fetch(
 			method: .get

@@ -7,8 +7,9 @@ import os
 import term
 import v.vmod
 
-fn create_client() ?client.KbbiClient {
+fn create_client(c client.KbbiClientConfig) ?client.KbbiClient {
 	return client.new_client_from_login(
+		base: c
 		username: os.getenv_opt('KBBI_USERNAME')?
 		password: os.getenv_opt('KBBI_PASSWORD')?
 	)!
@@ -30,10 +31,17 @@ fn main() {
 				global: true
 				default_value: ['true']
 			},
+			cli.Flag{
+				flag: cli.FlagType.bool
+				name: 'no-cache'
+				description: 'Ignores cached response.'
+				global: true
+			},
 		]
 		required_args: 1
 		execute: fn (cmd cli.Command) ! {
-			c := create_client() or { client.new_client()! }
+			no_cache := cmd.flags.get_bool('no-cache')!
+			c := create_client(use_cache: !no_cache) or { client.new_client(use_cache: !no_cache)! }
 
 			mut results := []string{cap: cmd.args.len}
 			for word in cmd.args {
