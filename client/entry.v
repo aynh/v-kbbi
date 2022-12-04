@@ -1,10 +1,9 @@
 module client
 
-import client.cache { CacheEntry }
+import client.cache
 import net.html
 import net.http
 import spinner
-import time
 
 pub struct KbbiResult {
 pub:
@@ -69,36 +68,16 @@ fn (c KbbiClient) fetch_entry(word string) !string {
 		spinner_handle.wait()
 	}
 
-	cached_response := if c.cache_db.is_open {
-		tmp := sql c.cache_db {
-			select from CacheEntry where key == word limit 1
-		}
-		tmp
-	} else {
-		CacheEntry{}
-	}
-	response := if cached_response != CacheEntry{} {
-		cached_response.value
-	} else {
-		tmp := http.fetch(
+	cookie := c.application_cookie
+	response := cache.get_or_init(c.cache_db, word, fn [cookie] (key string) !string {
+		return http.fetch(
 			method: .get
-			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
+			url: 'https://kbbi.kemdikbud.go.id/entri/${key.to_lower()}'
 			cookies: {
-				application_cookie: c.application_cookie
+				application_cookie: cookie
 			}
 		)!.body
-
-		cache := CacheEntry{
-			key: word
-			value: tmp
-			created_at: time.now()
-		}
-		sql c.cache_db {
-			insert cache into CacheEntry
-		}
-
-		tmp
-	}
+	})!
 
 	lock spinner_state {
 		spinner_state.done = true

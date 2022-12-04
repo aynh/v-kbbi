@@ -28,3 +28,31 @@ pub fn cache_db() !sqlite.DB {
 
 	return db
 }
+
+pub fn get_or_init(db sqlite.DB, key string, init fn (key string) !string) !string {
+	db_key := key.to_lower()
+	cached := if db.is_open {
+		tmp := sql db {
+			select from CacheEntry where key == db_key limit 1
+		}
+		tmp
+	} else {
+		CacheEntry{}
+	}
+
+	return if cached.value != '' {
+		cached.value
+	} else {
+		cache := CacheEntry{
+			key: db_key
+			value: init(key)!
+			created_at: time.now()
+		}
+
+		sql db {
+			insert cache into CacheEntry
+		}
+
+		cache.value
+	}
+}
