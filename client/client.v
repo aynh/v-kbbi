@@ -1,7 +1,9 @@
 module client
 
+import client.cache
 import net.http
 import net.html
+import sqlite
 
 const (
 	login_url          = 'https://kbbi.kemdikbud.go.id/Account/Login'
@@ -9,8 +11,14 @@ const (
 	verification_token = '__RequestVerificationToken'
 )
 
+[noinit]
 pub struct KbbiClient {
 	application_cookie string
+	cache_db           sqlite.DB
+}
+
+pub fn new_client() !KbbiClient {
+	return KbbiClient{'', cache.cache_db()!}
 }
 
 [params]
@@ -47,7 +55,7 @@ pub fn new_client_from_login(c KbbiClientLoginConfig) !KbbiClient {
 
 	for cookie in response.cookies() {
 		if cookie.name == client.application_cookie {
-			return KbbiClient{cookie.value}
+			return KbbiClient{cookie.value, cache.cache_db()!}
 		}
 	}
 

@@ -40,7 +40,7 @@ pub fn format_result(e KbbiResult) string {
 fn format_entry(e KbbiEntry) string {
 	mut builder := strings.new_builder(0)
 
-	kinds := e.kind.map(it.abbreviation + ' ').join('')
+	kinds := e.kinds.map(it.abbreviation + ' ').join('')
 	builder.write_string(term.italic(term.red(kinds)))
 
 	builder.write_string(e.description)

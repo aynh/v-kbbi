@@ -1,5 +1,6 @@
 module client
 
+import client.cache { CacheEntry }
 import net.html
 import net.http
 import spinner
@@ -18,7 +19,7 @@ pub struct KbbiEntry {
 pub:
 	description string
 	examples    []KbbiEntryExample
-	kind        []KbbiEntryKind
+	kinds       []KbbiEntryKind
 }
 
 pub struct KbbiEntryExample {
@@ -33,16 +34,42 @@ pub:
 	description  string
 }
 
+pub fn entry(word string) ![]KbbiResult {
+	return new_client()!.entry(word)!
+}
+
 pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
+	response := c.fetch_entry(word)!
+
+	document := html.parse(response)
+	document_tags := document.get_tags()
+
+	for tag in document_tags {
+		content := tag.content
+		if content.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
+			return error("today's search limit reached")
+		} else if content.contains('Entri tidak ditemukan.') {
+			return error('word `${word}` not found')
+		}
+	}
+
+	container_tags := document_tags.filter(it.name == 'ol'
+		|| (it.name == 'ul' && it.attributes['class'] == 'adjusted-par'))
+	return document_tags.filter(it.name == 'h2').map(parse_result(it, container_tags) or {
+		// re-return the error, but replace
+		// the {} placeholder with actual word
+		return error(err.msg().replace_once('{}', word))
+	})
+}
+
+fn (c KbbiClient) fetch_entry(word string) !string {
 	shared spinner_state := spinner.State{}
 	spinner_handle := spawn spinner.new_spinner(shared spinner_state)
 	defer {
 		spinner_handle.wait()
 	}
 
-	cache_db := c.cache_db()!
-
-	cached_response := sql cache_db {
+	cached_response := sql c.cache_db {
 		select from CacheEntry where key == word
 	}
 	response := if cached_response.len == 1 {
@@ -61,7 +88,7 @@ pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
 			value: tmp
 			created_at: time.now()
 		}
-		sql cache_db {
+		sql c.cache_db {
 			insert cache into CacheEntry
 		}
 
@@ -72,63 +99,36 @@ pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
 		spinner_state.done = true
 	}
 
-	document := html.parse(response)
-	document_tags := document.get_tags()
-
-	for tag in document_tags {
-		content := tag.content
-		if content.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
-			return error("today's search limit reached")
-		} else if content.contains('Entri tidak ditemukan.') {
-			return error('word `${word}` not found')
-		}
-	}
-
-	container_tags := document_tags.filter(it.name == 'ol'
-		|| (it.name == 'ul' && it.attributes['class'] == 'adjusted-par'))
-	map_closure := fn [container_tags] (heading_tag &html.Tag) !KbbiResult {
-		container_tag := container_tags.filter(it.position_in_parent > heading_tag.position_in_parent)[0]
-
-		heading_texts := heading_tag.get_tags('text')
-		mut title := if heading_texts.len > 0 {
-			heading_texts.last()
-		} else {
-			heading_tag
-		}.content.trim_space()
-		if superscript_tag := heading_tag.get_tags('sup')[0] {
-			title = '${title} (${superscript_tag.content})'
-		}
-
-		word := title.replace('.', '')
-		nonstandard_word := if tag := heading_tag.get_tags('b')[0] {
-			tag.content.trim_space()
-		} else {
-			''
-		}
-		original_word := if tag := heading_tag.get_tags_by_attribute_value('class', 'rootword')[0] {
-			tag.get_tags('a')[0].content.trim_space()
-		} else {
-			''
-		}
-
-		entries := parse_entries(container_tag)!
-
-		return KbbiResult{title, word, nonstandard_word, original_word, entries}
-	}
-
-	return document_tags.filter(it.name == 'h2').map(map_closure(it) or {
-		// re-return the error, but replace
-		// the {} placeholder with actual word
-		return error(err.msg().replace_once('{}', word))
-	})
+	return response
 }
 
-pub fn entry(word string) ![]KbbiResult {
-	return KbbiClient{''}.entry(word)!
-}
+fn parse_result(heading_tag &html.Tag, container_tags []&html.Tag) !KbbiResult {
+	container_tag := container_tags.filter(it.position_in_parent > heading_tag.position_in_parent)[0]
 
-fn parse_entries(container_tag &html.Tag) ![]KbbiEntry {
-	return container_tag.get_tags('li').map(parse_entry(it)!)
+	heading_texts := heading_tag.get_tags('text')
+	mut title := if heading_texts.len > 0 {
+		heading_texts.last()
+	} else {
+		heading_tag
+	}.content.trim_space()
+	if superscript_tag := heading_tag.get_tags('sup')[0] {
+		title = '${title} (${superscript_tag.content})'
+	}
+
+	word := title.replace('.', '')
+	nonstandard_word := if tag := heading_tag.get_tags('b')[0] {
+		tag.content.trim_space()
+	} else {
+		''
+	}
+	original_word := if tag := heading_tag.get_tags_by_attribute_value('class', 'rootword')[0] {
+		tag.get_tags('a')[0].content.trim_space()
+	} else {
+		''
+	}
+
+	entries := container_tag.get_tags('li').map(parse_entry(it)!)
+	return KbbiResult{title, word, nonstandard_word, original_word, entries}
 }
 
 fn parse_entry(li_tag &html.Tag) !KbbiEntry {
@@ -143,7 +143,7 @@ fn parse_entry(li_tag &html.Tag) !KbbiEntry {
 	return KbbiEntry{
 		description: description
 		examples: parse_entry_examples(li_tag)
-		kind: parse_entry_kinds(li_tag)
+		kinds: parse_entry_kinds(li_tag)
 	}
 }
 
