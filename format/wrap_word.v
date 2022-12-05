@@ -20,18 +20,20 @@ fn wrap_word(c WrapWordConfig) string {
 
 	mut char_count := 0
 	max_width := c.max_width - c.prefix.len
-	for word in c.s.split(' ') {
+	for i, word in c.s.split(' ') {
 		word_without_ansi := term.strip_ansi(word)
-		if (char_count + word_without_ansi.len) < max_width {
-			builder.write_string(' ')
-			char_count += 1
-		} else {
-			builder.write_string('\n' + c.prefix)
+		if i != 0 {
+			if (char_count + word_without_ansi.len) < max_width {
+				builder.write_string(' ')
+				char_count += 1
+			} else {
+				builder.write_string('\n' + c.prefix)
 
-			char_count = 0
-			if c.indent > 0 {
-				builder.write_string(` `.repeat(c.indent))
-				char_count += c.indent
+				char_count = 0
+				if c.indent > 0 {
+					builder.write_string(` `.repeat(c.indent))
+					char_count += c.indent
+				}
 			}
 		}
 
