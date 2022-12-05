@@ -14,7 +14,7 @@ pub fn format_result(e KbbiResult) string {
 	terminal_width, _ := term.get_terminal_size()
 	entry_prefix := '   '
 	if e.entries.len == 1 {
-		builder.writeln(wrap_word(
+		builder.write_string(wrap_word(
 			s: format_entry(e.entries[0])
 			prefix: entry_prefix
 			max_width: terminal_width
@@ -31,7 +31,7 @@ pub fn format_result(e KbbiResult) string {
 			prefix: entry_prefix
 			max_width: terminal_width
 		)).join('\n')
-		builder.writeln(wrapped_entries)
+		builder.write_string(wrapped_entries)
 	}
 
 	return builder.str()

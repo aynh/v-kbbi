@@ -65,7 +65,7 @@ fn main() {
 			out := if cmd.flags.get_bool('json')! {
 				json.encode(results)
 			} else {
-				mut tmp := results.map(format_result).join('\n')
+				mut tmp := results.map(format_result).join('\n\n')
 				if !cmd.flags.get_bool('no-color')! && term.can_show_color_on_stdout() {
 				 	tmp
 				} else {
@@ -78,7 +78,7 @@ fn main() {
 				spinner_handle.wait()
 			}
 
-			print(out)
+			println(out)
 		}
 	}
 
