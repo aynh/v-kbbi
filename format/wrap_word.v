@@ -12,7 +12,9 @@ struct WrapWordConfig {
 }
 
 fn wrap_word(c WrapWordConfig) string {
-	mut builder := strings.new_builder(0)
+	expected_lines := (c.s.len / c.max_width) + 1
+	mut builder := strings.new_builder(expected_lines + c.s.len + (c.prefix.len * expected_lines) +
+		(c.indent * expected_lines))
 
 	builder.write_string(c.prefix)
 
