@@ -8,7 +8,7 @@ struct WrapWordConfig {
 	s         string
 	prefix    string
 	indent    int
-	max_width int
+	max_width int = 80
 }
 
 fn wrap_word(c WrapWordConfig) string {
