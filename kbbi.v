@@ -28,10 +28,9 @@ fn main() {
 		flags: [
 			cli.Flag{
 				flag: cli.FlagType.bool
-				name: 'color'
-				description: 'Colors the output.'
+				name: 'no-color'
+				description: 'Disables output color.'
 				global: true
-				default_value: ['true']
 			},
 			cli.Flag{
 				flag: cli.FlagType.bool
@@ -67,7 +66,7 @@ fn main() {
 				json.encode(results)
 			} else {
 				mut tmp := results.map(format_result).join('\n')
-				if cmd.flags.get_bool('color')! && term.can_show_color_on_stdout() {
+				if !cmd.flags.get_bool('no-color')! && term.can_show_color_on_stdout() {
 				 	tmp
 				} else {
 					term.strip_ansi(tmp)
