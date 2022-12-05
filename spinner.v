@@ -10,7 +10,7 @@ pub mut:
 pub fn create(shared state State) {
 	// table flip spinner
 	chars := "___-``'´-___".runes()
-	interval := 70000000 // 70ms in ns
+	interval := 70 * time.millisecond
 
 	mut i := 0
 	for !state.done {
