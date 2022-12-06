@@ -10,6 +10,8 @@ import term
 import v.vmod
 
 fn main() {
+	spin := spinner.new()
+
 	vm := vmod.decode(@VMOD_FILE) or { panic(err) }
 	mut app := cli.Command{
 		name: vm.name
@@ -40,13 +42,11 @@ fn main() {
 			},
 		]
 		required_args: 1
-		execute: fn (cmd cli.Command) ! {
-			shared spinner_state := spinner.State{}
-			spinner_handle := spawn spinner.create(shared spinner_state)
+		execute: fn [spin] (cmd cli.Command) ! {
+			spin.start()
 
 			no_cache := cmd.flags.get_bool('no-cache')!
-			no_login := cmd.flags.get_bool('no-login')!
-			c := if no_login {
+			c := if cmd.flags.get_bool('no-login')! {
 				client.new_client(use_cache: !no_cache)!
 			} else {
 				client.new_client_from_cache(use_cache: !no_cache)!
@@ -73,10 +73,7 @@ fn main() {
 				}
 			}
 
-			lock spinner_state {
-				spinner_state.done = true
-				spinner_handle.wait()
-			}
+			spin.stop()
 
 			println(out)
 		}
@@ -105,7 +102,7 @@ fn main() {
 						description: 'Logins with this password.'
 					},
 				]
-				execute: fn (cmd cli.Command) ! {
+				execute: fn [spin] (cmd cli.Command) ! {
 					username := cmd.flags.get_string('username')!
 					password := cmd.flags.get_string('password')!
 					from_env := cmd.flags.get_bool('from-env')!
@@ -138,16 +135,12 @@ fn main() {
 						user, pass
 					}
 
-					shared spinner_state := spinner.State{}
-					spinner_handle := spawn spinner.create(shared spinner_state)
+					spin.start()
 
 					c := client.new_client_from_login(username: user, password: pass)!
 					c.save_to_cache()!
 
-					lock spinner_state {
-						spinner_state.done = true
-						spinner_handle.wait()
-					}
+					spin.stop()
 
 					println('Successfully logged in')
 				}
