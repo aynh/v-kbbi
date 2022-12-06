@@ -54,7 +54,7 @@ fn main() {
 
 			mut results := []client.KbbiResult{}
 			for word in cmd.args {
-				w_results := c.entry(word) or {
+				w_results := c.entry(word: word) or {
 					println('failed to search `${word}`: ${err}')
 					exit(1)
 				}
@@ -62,22 +62,40 @@ fn main() {
 				results << w_results
 			}
 
-			out := if cmd.flags.get_bool('json')! {
-				json.encode(results)
-			} else {
-				mut tmp := results.map(format_result).join('\n\n')
-				if !cmd.flags.get_bool('no-color')! && term.can_show_color_on_stdout() {
-					tmp
-				} else {
-					term.strip_ansi(tmp)
-				}
-			}
+			out := process_results(results, cmd)!
 
 			spin.stop()
 
 			println(out)
 		}
 		commands: [
+			cli.Command{
+				name: 'cache'
+				description: 'Searches cached words.'
+				usage: '<word>...'
+				required_args: 1
+				execute: fn [spin] (cmd cli.Command) ! {
+					spin.start()
+
+					c := client.new_client()!
+
+					mut results := []client.KbbiResult{}
+					for word in cmd.args {
+						w_results := c.entry(word: word, cached_only: true) or {
+							println('failed to search `${word}`: ${err}')
+							exit(1)
+						}
+
+						results << w_results
+					}
+
+					out := process_results(results, cmd.root())!
+
+					spin.stop()
+
+					println(out)
+				}
+			},
 			cli.Command{
 				name: 'login'
 				description: 'Logins to kbbi.kemdikbud.go.id account.'
@@ -150,4 +168,17 @@ fn main() {
 
 	app.setup()
 	app.parse(os.args)
+}
+
+fn process_results(results []client.KbbiResult, root_cmd &cli.Command) !string {
+	return if root_cmd.flags.get_bool('json')! {
+		json.encode(results)
+	} else {
+		mut out := results.map(format_result).join('\n\n')
+		if !root_cmd.flags.get_bool('no-color')! && term.can_show_color_on_stdout() {
+			out
+		} else {
+			term.strip_ansi(out)
+		}
+	}
 }

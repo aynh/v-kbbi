@@ -32,12 +32,22 @@ pub:
 	description  string
 }
 
-pub fn entry(word string) ![]KbbiResult {
-	return new_client()!.entry(word)!
+[params]
+pub struct EntryConfig {
+	word        string [required]
+	cached_only bool
 }
 
-pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
-	response := c.fetch_entry(word)!
+pub fn entry(c EntryConfig) ![]KbbiResult {
+	return new_client()!.entry(c)!
+}
+
+pub fn (client KbbiClient) entry(c EntryConfig) ![]KbbiResult {
+	response := if c.cached_only {
+		client.get_cached_entry(c.word)!
+	} else {
+		client.fetch_entry(c.word)!
+	}
 
 	document := html.parse(response)
 	document_tags := document.get_tags()
@@ -47,7 +57,7 @@ pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
 		if content.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
 			return error("today's search limit reached")
 		} else if content.contains('Entri tidak ditemukan.') {
-			return error('word `${word}` not found')
+			return error('word `${c.word}` not found')
 		}
 	}
 
@@ -56,23 +66,27 @@ pub fn (c KbbiClient) entry(word string) ![]KbbiResult {
 	return document_tags.filter(it.name == 'h2').map(parse_result(it, container_tags) or {
 		// re-return the error, but replace
 		// the {} placeholder with actual word
-		return error(err.msg().replace_once('{}', word))
+		return error(err.msg().replace_once('{}', c.word))
 	})
 }
 
-fn (c KbbiClient) fetch_entry(word string) !string {
-	cookie := c.application_cookie
-	response := cache.get_or_init(c.cache_db, word, fn [cookie] (key string) !string {
+fn (client KbbiClient) get_cached_entry(word string) !string {
+	return cache.get_or_init(client.cache_db, word, fn (word string) !string {
+		return error('word `${word}` not cached')
+	})!
+}
+
+fn (client KbbiClient) fetch_entry(word string) !string {
+	cookie := client.application_cookie
+	return cache.get_or_init(client.cache_db, word, fn [cookie] (word string) !string {
 		return http.fetch(
 			method: .get
-			url: 'https://kbbi.kemdikbud.go.id/entri/${key.to_lower()}'
+			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
 			cookies: {
 				application_cookie: cookie
 			}
 		)!.body
 	})!
-
-	return response
 }
 
 fn parse_result(heading_tag &html.Tag, container_tags []&html.Tag) !KbbiResult {
