@@ -100,7 +100,7 @@ fn parse_result(heading_tag &html.Tag, container_tags []&html.Tag) !KbbiResult {
 		''
 	}
 
-	entries := container_tag.get_tags('li').map(parse_entry(it)!)
+	entries := container_tag.get_tags('li').map(parse_entry(it)!).filter(it.description != 'Usulkan makna baru')
 	return KbbiResult{title, word, nonstandard_word, original_word, entries}
 }
 
@@ -124,7 +124,7 @@ fn parse_entry_kinds(li_tag &html.Tag) []KbbiEntryKind {
 	return li_tag.get_tags('span').map(KbbiEntryKind{
 		abbreviation: it.content.trim_space()
 		description: it.attributes['title']
-	})
+	}).filter(it.abbreviation != '')
 }
 
 fn parse_entry_examples(li_tag &html.Tag) []KbbiEntryExample {
