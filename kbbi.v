@@ -42,7 +42,7 @@ fn main() {
 			},
 		]
 		required_args: 1
-		execute: fn [spin] (cmd cli.Command) ! {
+		execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
 			spin.start()
 
 			no_cache := cmd.flags.get_bool('no-cache')!
@@ -54,10 +54,7 @@ fn main() {
 
 			mut results := []client.KbbiResult{}
 			for word in cmd.args {
-				w_results := c.entry(word: word) or {
-					println('failed to search `${word}`: ${err}')
-					exit(1)
-				}
+				w_results := c.entry(word: word)!
 
 				results << w_results
 			}
@@ -67,24 +64,21 @@ fn main() {
 			spin.stop()
 
 			println(out)
-		}
+		})
 		commands: [
 			cli.Command{
 				name: 'cache'
 				description: 'Searches cached words.'
 				usage: '<word>...'
 				required_args: 1
-				execute: fn [spin] (cmd cli.Command) ! {
+				execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
 					spin.start()
 
 					c := client.new_client()!
 
 					mut results := []client.KbbiResult{}
 					for word in cmd.args {
-						w_results := c.entry(word: word, cached_only: true) or {
-							println('failed to search `${word}`: ${err}')
-							exit(1)
-						}
+						w_results := c.entry(word: word, cached_only: true)!
 
 						results << w_results
 					}
@@ -94,7 +88,7 @@ fn main() {
 					spin.stop()
 
 					println(out)
-				}
+				})
 			},
 			cli.Command{
 				name: 'login'
@@ -120,7 +114,7 @@ fn main() {
 						description: 'Logins with this password.'
 					},
 				]
-				execute: fn [spin] (cmd cli.Command) ! {
+				execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
 					username := cmd.flags.get_string('username')!
 					password := cmd.flags.get_string('password')!
 					from_env := cmd.flags.get_bool('from-env')!
@@ -161,7 +155,7 @@ fn main() {
 					spin.stop()
 
 					println('Successfully logged in')
-				}
+				})
 			},
 		]
 	}
@@ -179,6 +173,16 @@ fn process_results(results []client.KbbiResult, root_cmd &cli.Command) !string {
 			out
 		} else {
 			term.strip_ansi(out)
+		}
+	}
+}
+
+// wraps the command's callback; stops the spinner before printing errors
+fn wrap_cb(spin spinner.Spinner, cb cli.FnCommandCallback) cli.FnCommandCallback {
+	return fn [cb, spin] (cmd cli.Command) ! {
+		cb(cmd) or {
+			spin.stop()
+			return err
 		}
 	}
 }
