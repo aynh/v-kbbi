@@ -4,6 +4,7 @@ import client.cache
 import net.http
 import net.html
 import sqlite
+import time
 
 const (
 	login_url          = 'https://kbbi.kemdikbud.go.id/Account/Login'
@@ -15,6 +16,26 @@ const (
 pub struct KbbiClient {
 	application_cookie string
 	cache_db           sqlite.DB
+}
+
+pub fn (c KbbiClient) save_to_cache() ! {
+	if !c.cache_db.is_open {
+		return error('unable to save login cache')
+	}
+
+	sql c.cache_db {
+		delete from cache.CacheEntry where key == cache.login_key
+	}
+
+	cache := cache.CacheEntry{
+		key: cache.login_key
+		value: c.application_cookie
+		created_at: time.now()
+	}
+
+	sql c.cache_db {
+		insert cache into cache.CacheEntry
+	}
 }
 
 [params]
@@ -29,7 +50,27 @@ pub fn new_client(c KbbiClientConfig) !KbbiClient {
 		sqlite.DB{}
 	}
 
-	return KbbiClient{'', cache_db}
+	return KbbiClient{
+		cache_db: cache_db
+	}
+}
+
+pub fn new_client_from_cache(c KbbiClientConfig) !KbbiClient {
+	db := cache.cache_db()!
+	cookie := sql db {
+		select from cache.CacheEntry where key == cache.login_key limit 1
+	}
+
+	return if c.use_cache {
+		KbbiClient{
+			cache_db: db
+			application_cookie: cookie.value
+		}
+	} else {
+		KbbiClient{
+			application_cookie: cookie.value
+		}
+	}
 }
 
 [params]
@@ -76,5 +117,5 @@ pub fn new_client_from_login(c KbbiClientLoginConfig) !KbbiClient {
 		}
 	}
 
-	return error('unable to find `${client.application_cookie}` cookie')
+	return error('unable to find `${client.application_cookie}` cookie, login may be invalid')
 }

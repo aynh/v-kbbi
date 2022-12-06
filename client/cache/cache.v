@@ -5,6 +5,8 @@ import sqlite
 import time
 import v.vmod
 
+pub const login_key = '__login'
+
 [table: 'response_cache']
 pub struct CacheEntry {
 	id int [primary; sql: serial]
