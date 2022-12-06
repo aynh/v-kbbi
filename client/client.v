@@ -15,7 +15,8 @@ const (
 [noinit]
 pub struct KbbiClient {
 	application_cookie string
-	cache_db           sqlite.DB
+pub:
+	cache_db sqlite.DB
 }
 
 pub fn (c KbbiClient) save_to_cache() ! {

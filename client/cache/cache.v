@@ -31,6 +31,14 @@ pub fn cache_db() !sqlite.DB {
 	return db
 }
 
+pub fn get_all_keys(db sqlite.DB) []string {
+	tmp := sql db {
+		select from CacheEntry where key != cache.login_key
+	}
+
+	return tmp.map(it.key)
+}
+
 pub fn get_or_init(db sqlite.DB, key string, init fn (key string) !string) !string {
 	db_key := key.to_lower()
 	cached := if db.is_open {

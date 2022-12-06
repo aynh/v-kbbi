@@ -2,6 +2,7 @@ module main
 
 import cli
 import client
+import client.cache as client_cache
 import format { format_result }
 import json
 import os
@@ -69,15 +70,20 @@ fn main() {
 			cli.Command{
 				name: 'cache'
 				description: 'Searches cached words.'
-				usage: '<word>...'
-				required_args: 1
+				usage: '<?word>...'
 				execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
 					spin.start()
 
 					c := client.new_client()!
 
+					words := if cmd.args.len > 0 {
+						cmd.args
+					} else {
+						client_cache.get_all_keys(c.cache_db)
+					}
+
 					mut results := []client.KbbiResult{}
-					for word in cmd.args {
+					for word in words {
 						w_results := c.entry(word: word, cached_only: true)!
 
 						results << w_results
