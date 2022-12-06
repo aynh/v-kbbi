@@ -52,15 +52,6 @@ pub fn (client KbbiClient) entry(c EntryConfig) ![]KbbiResult {
 	document := html.parse(response)
 	document_tags := document.get_tags()
 
-	for tag in document_tags {
-		content := tag.content
-		if content.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
-			return error("today's search limit reached")
-		} else if content.contains('Entri tidak ditemukan.') {
-			return error('word `${c.word}` not found')
-		}
-	}
-
 	container_tags := document_tags.filter(it.name == 'ol'
 		|| (it.name == 'ul' && it.attributes['class'] == 'adjusted-par'))
 	return document_tags.filter(it.name == 'h2').map(parse_result(it, container_tags) or {
@@ -79,13 +70,21 @@ fn (client KbbiClient) get_cached_entry(word string) !string {
 fn (client KbbiClient) fetch_entry(word string) !string {
 	cookie := client.application_cookie
 	return cache.get_or_init(client.cache_db, word, fn [cookie] (word string) !string {
-		return http.fetch(
+		response := http.fetch(
 			method: .get
 			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
 			cookies: {
 				application_cookie: cookie
 			}
 		)!.body
+
+		if response.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
+			return error('daily search limit reached')
+		} else if response.contains('Entri tidak ditemukan.') {
+			return error('word `${word}` not found')
+		}
+
+		return response
 	})!
 }
 
