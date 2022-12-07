@@ -2,7 +2,6 @@ module main
 
 import cli
 import client
-import client.cache as client_cache
 import format { format_result }
 import json
 import os
@@ -79,7 +78,7 @@ fn main() {
 					words := if cmd.args.len > 0 {
 						cmd.args
 					} else {
-						client_cache.get_all_keys(c.cache_db)
+						c.cache_get_all_keys()
 					}
 
 					mut results := []client.KbbiResult{}
@@ -156,7 +155,7 @@ fn main() {
 					spin.start()
 
 					c := client.new_client_from_login(username: user, password: pass)!
-					c.save_to_cache()!
+					c.save_session()!
 
 					spin.stop()
 

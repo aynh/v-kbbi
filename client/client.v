@@ -1,6 +1,5 @@
 module client
 
-import client.cache
 import net.http
 import net.html
 import sqlite
@@ -15,27 +14,26 @@ const (
 [noinit]
 pub struct KbbiClient {
 	application_cookie string
-pub:
-	cache_db sqlite.DB
+	cache_db           sqlite.DB
 }
 
-pub fn (c KbbiClient) save_to_cache() ! {
+pub fn (c KbbiClient) save_session() ! {
 	if !c.cache_db.is_open {
 		return error('unable to save login cache')
 	}
 
 	sql c.cache_db {
-		delete from cache.CacheEntry where key == cache.login_key
+		delete from CacheEntry where key == login_cache_key
 	}
 
-	cache := cache.CacheEntry{
-		key: cache.login_key
+	cache := CacheEntry{
+		key: login_cache_key
 		value: c.application_cookie
 		created_at: time.now()
 	}
 
 	sql c.cache_db {
-		insert cache into cache.CacheEntry
+		insert cache into CacheEntry
 	}
 }
 
@@ -46,7 +44,7 @@ pub struct KbbiClientConfig {
 
 pub fn new_client(c KbbiClientConfig) !KbbiClient {
 	cache_db := if c.use_cache {
-		cache.cache_db()!
+		new_cache_db()!
 	} else {
 		sqlite.DB{}
 	}
@@ -57,14 +55,14 @@ pub fn new_client(c KbbiClientConfig) !KbbiClient {
 }
 
 pub fn new_client_from_cache(c KbbiClientConfig) !KbbiClient {
-	db := cache.cache_db()!
-	cookie := sql db {
-		select from cache.CacheEntry where key == cache.login_key limit 1
+	cache_db := new_cache_db()!
+	cookie := sql cache_db {
+		select from CacheEntry where key == login_cache_key limit 1
 	}
 
 	return if c.use_cache {
 		KbbiClient{
-			cache_db: db
+			cache_db: cache_db
 			application_cookie: cookie.value
 		}
 	} else {

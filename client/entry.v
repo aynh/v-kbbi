@@ -1,6 +1,5 @@
 module client
 
-import client.cache
 import net.html
 import net.http
 
@@ -62,14 +61,14 @@ pub fn (client KbbiClient) entry(c EntryConfig) ![]KbbiResult {
 }
 
 fn (client KbbiClient) get_cached_entry(word string) !string {
-	return cache.get_or_init(client.cache_db, word, fn (word string) !string {
+	return client.cache_get_or_init(word, fn (word string) !string {
 		return error('word `${word}` not cached')
 	})!
 }
 
 fn (client KbbiClient) fetch_entry(word string) !string {
 	cookie := client.application_cookie
-	return cache.get_or_init(client.cache_db, word, fn [cookie] (word string) !string {
+	return client.cache_get_or_init(word, fn [cookie] (word string) !string {
 		response := http.fetch(
 			method: .get
 			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
