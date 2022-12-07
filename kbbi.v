@@ -11,6 +11,12 @@ import v.vmod
 fn main() {
 	spin := spinner.new()
 
+	pre_exec := fn [spin] (cmd cli.Command) ! {
+		if cmd.root().flags.get_bool('no-spinner')! {
+			spin.stop()
+		}
+	}
+
 	vm := vmod.decode(@VMOD_FILE) or { panic(err) }
 	mut app := cli.Command{
 		name: vm.name
@@ -36,11 +42,17 @@ fn main() {
 			},
 			cli.Flag{
 				flag: cli.FlagType.bool
+				name: 'no-spinner'
+				description: 'Disables spinner.'
+			},
+			cli.Flag{
+				flag: cli.FlagType.bool
 				name: 'json'
 				description: 'Outputs in JSON format.'
 			},
 		]
 		required_args: 1
+		pre_execute: pre_exec
 		execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
 			spin.start()
 
@@ -69,6 +81,7 @@ fn main() {
 				name: 'cache'
 				description: 'Searches cached words.'
 				usage: '<?word>...'
+				pre_execute: pre_exec
 				execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
 					spin.start()
 
@@ -118,6 +131,7 @@ fn main() {
 						description: 'Logins with this password.'
 					},
 				]
+				pre_execute: pre_exec
 				execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
 					username := cmd.flags.get_string('username')!
 					password := cmd.flags.get_string('password')!

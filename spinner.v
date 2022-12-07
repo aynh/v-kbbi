@@ -35,22 +35,29 @@ pub fn new() Spinner {
 
 // pause pauses the spinner
 pub fn (s Spinner) pause() {
-	s.ch <- SpinnerState.paused
-	// wait until the spinner actually stops
-	time.sleep(spinner.interval)
+	if !s.ch.closed {
+		s.ch <- SpinnerState.paused
+		// wait until the spinner actually stops
+		time.sleep(spinner.interval)
+	}
 }
 
 // start starts the spinner
 pub fn (s Spinner) start() {
-	s.ch <- SpinnerState.started
+	if !s.ch.closed {
+		s.ch <- SpinnerState.started
+	}
 }
 
 // stop stops the spinner
 //
-// the spinner shouldn't be used anymore after calling this
+// the spinner is unusable after calling this
 pub fn (s Spinner) stop() {
-	s.ch <- SpinnerState.stopped
-	s.handle.wait()
+	if !s.ch.closed {
+		s.ch <- SpinnerState.stopped
+		s.handle.wait()
+		s.ch.close()
+	}
 }
 
 fn run(ch chan SpinnerState) {
