@@ -12,7 +12,8 @@ fn main() {
 	spin := spinner.new()
 
 	pre_exec := fn [spin] (cmd cli.Command) ! {
-		if cmd.root().flags.get_bool('no-spinner')! {
+		// stop spinner if --no-spinner or stderr is not a terminal
+		if cmd.root().flags.get_bool('no-spinner')! || os.is_atty(2) <= 0 {
 			spin.stop()
 		}
 	}
