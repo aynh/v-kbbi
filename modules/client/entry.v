@@ -37,16 +37,14 @@ pub struct EntryConfig {
 	cached_only bool
 }
 
+// entry returns representations of KBBI search with key `word`
 pub fn entry(c EntryConfig) ![]KbbiResult {
-	return new_client()!.entry(c)!
+	return new_client(no_cache: true)!.entry(c)!
 }
 
+// entry returns representations of KBBI search with key `word`
 pub fn (client KbbiClient) entry(c EntryConfig) ![]KbbiResult {
-	response := if c.cached_only {
-		client.get_cached_entry(c.word)!
-	} else {
-		client.fetch_entry(c.word)!
-	}
+	response := client.fetch_entry(c)!
 
 	document := html.parse(response)
 	document_tags := document.get_tags()
@@ -60,20 +58,19 @@ pub fn (client KbbiClient) entry(c EntryConfig) ![]KbbiResult {
 	})
 }
 
-fn (client KbbiClient) get_cached_entry(word string) !string {
-	return client.cache_get_or_init(word, fn (word string) !string {
-		return error('word `${word}` not cached')
-	})!
-}
+fn (client KbbiClient) fetch_entry(c EntryConfig) !string {
+	cached_only := &c.cached_only
+	cookie := &client.application_cookie
+	return client.cache_get_or_init(c.word, fn [cached_only, cookie] (word string) !string {
+		if *cached_only {
+			return error('word `${word}` not cached')
+		}
 
-fn (client KbbiClient) fetch_entry(word string) !string {
-	cookie := client.application_cookie
-	return client.cache_get_or_init(word, fn [cookie] (word string) !string {
 		response := http.fetch(
 			method: .get
 			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
 			cookies: {
-				application_cookie: cookie
+				application_cookie: *cookie
 			}
 		)!.body
 
@@ -90,30 +87,48 @@ fn (client KbbiClient) fetch_entry(word string) !string {
 fn parse_result(heading_tag &html.Tag, container_tags []&html.Tag) !KbbiResult {
 	container_tag := container_tags.filter(it.position_in_parent > heading_tag.position_in_parent)[0]
 
+	title := parse_title(heading_tag)
+	word := title.replace('.', '')
+	nonstandard_word := parse_nonstandard_word(heading_tag) or { '' }
+	original_word := parse_original_word(heading_tag) or { '' }
+	entries := parse_entries(container_tag)!
+
+	return KbbiResult{title, word, nonstandard_word, original_word, entries}
+}
+
+fn parse_title(heading_tag &html.Tag) string {
 	heading_texts := heading_tag.get_tags('text')
-	mut title := if heading_texts.len > 0 {
+	title := if heading_texts.len > 0 {
 		heading_texts.last()
 	} else {
 		heading_tag
 	}.content.trim_space()
-	if superscript_tag := heading_tag.get_tags('sup')[0] {
-		title = '${title} (${superscript_tag.content})'
-	}
 
-	word := title.replace('.', '')
-	nonstandard_word := if tag := heading_tag.get_tags('b')[0] {
+	return if superscript_tag := heading_tag.get_tags('sup')[0] {
+		'${title} (${superscript_tag.content})'
+	} else {
+		title
+	}
+}
+
+fn parse_nonstandard_word(heading_tag &html.Tag) ?string {
+	return if tag := heading_tag.get_tags('b')[0] {
 		tag.content.trim_space()
 	} else {
-		''
+		none
 	}
-	original_word := if tag := heading_tag.get_tags_by_attribute_value('class', 'rootword')[0] {
+}
+
+fn parse_original_word(heading_tag &html.Tag) ?string {
+	return if tag := heading_tag.get_tags_by_attribute_value('class', 'rootword')[0] {
 		tag.get_tags('a')[0].content.trim_space()
 	} else {
-		''
+		none
 	}
+}
 
-	entries := container_tag.get_tags('li').map(parse_entry(it)!).filter(it.description != 'Usulkan makna baru')
-	return KbbiResult{title, word, nonstandard_word, original_word, entries}
+fn parse_entries(container_tag &html.Tag) ![]KbbiEntry {
+	return container_tag.get_tags('li').map(parse_entry(it)!).filter(it.description != 'Usulkan makna baru')
 }
 
 fn parse_entry(li_tag &html.Tag) !KbbiEntry {

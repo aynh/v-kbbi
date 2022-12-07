@@ -17,6 +17,9 @@ pub struct KbbiClient {
 	cache_db           sqlite.DB
 }
 
+// save_session saves this `KbbiClient` session (`application_cookie`) into it's `cache_db`
+//
+// afterwards, `KbbiClient` created with `new_client_from_cache` will use this session
 pub fn (c KbbiClient) save_session() ! {
 	if !c.cache_db.is_open {
 		return error('unable to save login cache')
@@ -39,11 +42,12 @@ pub fn (c KbbiClient) save_session() ! {
 
 [params]
 pub struct KbbiClientConfig {
-	use_cache bool = true
+	no_cache bool
 }
 
+// new_client creates a default client
 pub fn new_client(c KbbiClientConfig) !KbbiClient {
-	cache_db := if c.use_cache {
+	cache_db := if !c.no_cache {
 		new_cache_db()!
 	} else {
 		sqlite.DB{}
@@ -54,13 +58,16 @@ pub fn new_client(c KbbiClientConfig) !KbbiClient {
 	}
 }
 
+// new_client_from_cache creates a client from cache database
+//
+// you need to save a session beforehand using `save_session`
 pub fn new_client_from_cache(c KbbiClientConfig) !KbbiClient {
 	cache_db := new_cache_db()!
 	cookie := sql cache_db {
 		select from CacheEntry where key == login_cache_key limit 1
 	}
 
-	return if c.use_cache {
+	return if !c.no_cache {
 		KbbiClient{
 			cache_db: cache_db
 			application_cookie: cookie.value
@@ -75,11 +82,16 @@ pub fn new_client_from_cache(c KbbiClientConfig) !KbbiClient {
 [params]
 pub struct KbbiClientLoginConfig {
 	base     KbbiClientConfig
-	username string
-	password string
+	username string           [required]
+	password string           [required]
 }
 
+// new_client_from_login creates a client by simulating a login using username and password
 pub fn new_client_from_login(c KbbiClientLoginConfig) !KbbiClient {
+	if c.username == '' || c.password == '' {
+		return error("login username or password can't be empty")
+	}
+
 	init_response := http.get(client.login_url)!
 	login_document := html.parse(init_response.body)
 	verification_tag := login_document.get_tag('input').filter(it.attributes['name'] == client.verification_token)[0]!

@@ -17,10 +17,10 @@ struct CacheEntry {
 
 fn new_cache_db() !sqlite.DB {
 	vm := vmod.decode(@VMOD_FILE) or { panic(err) }
-	dir := os.join_path(os.cache_dir(), 'v' + vm.name)
+	dir := os.join_path(os.cache_dir(), vm.name)
 	os.mkdir_all(dir)!
 
-	path := os.norm_path(os.join_path(dir, vm.version + '.db'))
+	path := os.join_path(dir, 'db.sqlite')
 	db := sqlite.connect(path)!
 
 	sql db {
@@ -30,6 +30,7 @@ fn new_cache_db() !sqlite.DB {
 	return db
 }
 
+// cache_get_all_keys returns all cache keys
 pub fn (c KbbiClient) cache_get_all_keys() []string {
 	caches := sql c.cache_db {
 		select from CacheEntry where key != client.login_cache_key
@@ -38,11 +39,16 @@ pub fn (c KbbiClient) cache_get_all_keys() []string {
 	return caches.map(it.key)
 }
 
+// cache_get_or_init gets cache value with key `key` or initialize (set) them with `init` and returns the result
 pub fn (c KbbiClient) cache_get_or_init(key string, init fn (key string) !string) !string {
 	db_key := key.to_lower()
 	cached := sql c.cache_db {
 		select from CacheEntry where key == db_key limit 1
-	} or {
+	}
+
+	return if cached.value != '' {
+		cached.value
+	} else {
 		cache := CacheEntry{
 			key: db_key
 			value: init(key)!
@@ -53,8 +59,6 @@ pub fn (c KbbiClient) cache_get_or_init(key string, init fn (key string) !string
 			insert cache into CacheEntry
 		}
 
-		cache
+		cache.value
 	}
-
-	return cached.value
 }

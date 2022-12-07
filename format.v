@@ -1,12 +1,13 @@
-module format
+module main
 
 import arrays { map_indexed }
 import client { KbbiEntry, KbbiEntryExample, KbbiResult }
 import math
 import strings
 import term
+import wrap_word { wrap_word }
 
-pub fn format_result(e KbbiResult) string {
+fn format_result(e KbbiResult) string {
 	mut builder := strings.new_builder(0)
 
 	builder.writeln('  ' + term.bold(e.title))

@@ -5,12 +5,15 @@ import time
 const (
 	// table flip spinner
 	chars    = "___-``'´-___".runes()
+	// spinner's interval
 	interval = 70 * time.millisecond
 )
 
 [noinit]
 pub struct Spinner {
-	ch     chan SpinnerState
+	// the channel used to communicate with this Spinner's thread
+	ch chan SpinnerState
+	// the thread this Spinner's spawned
 	handle thread
 }
 
@@ -20,6 +23,8 @@ enum SpinnerState {
 	stopped
 }
 
+// new creates a new Spinner.
+// the the spinner is paused by default, so you need to call Spinner.start() first.
 pub fn new() Spinner {
 	ch := chan SpinnerState{cap: 1}
 	return Spinner{
@@ -28,16 +33,21 @@ pub fn new() Spinner {
 	}
 }
 
+// pause pauses the spinner
 pub fn (s Spinner) pause() {
 	s.ch <- SpinnerState.paused
 	// wait until the spinner actually stops
 	time.sleep(spinner.interval)
 }
 
+// start starts the spinner
 pub fn (s Spinner) start() {
 	s.ch <- SpinnerState.started
 }
 
+// stop stops the spinner
+//
+// the spinner shouldn't be used anymore after calling this
 pub fn (s Spinner) stop() {
 	s.ch <- SpinnerState.stopped
 	s.handle.wait()

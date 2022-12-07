@@ -2,7 +2,6 @@ module main
 
 import cli
 import client
-import format { format_result }
 import json
 import os
 import spinner
@@ -47,9 +46,9 @@ fn main() {
 
 			no_cache := cmd.flags.get_bool('no-cache')!
 			c := if cmd.flags.get_bool('no-login')! {
-				client.new_client(use_cache: !no_cache)!
+				client.new_client(no_cache: no_cache)!
 			} else {
-				client.new_client_from_cache(use_cache: !no_cache)!
+				client.new_client_from_cache(no_cache: no_cache)!
 			}
 
 			mut results := []client.KbbiResult{}
