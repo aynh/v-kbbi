@@ -10,7 +10,12 @@ import wrap_word { wrap_word }
 fn format_result(e KbbiResult) string {
 	mut builder := strings.new_builder(0)
 
-	builder.writeln('  ' + term.bold(e.title))
+	heading := if e.original_word == '' {
+		e.title
+	} else {
+		e.original_word + ' >> ' + e.title
+	}
+	builder.writeln('  ' + term.bold(heading))
 
 	terminal_width, _ := term.get_terminal_size()
 	entry_prefix := '   '
