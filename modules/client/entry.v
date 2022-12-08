@@ -43,8 +43,8 @@ pub fn entry(c EntryConfig) ![]KbbiResult {
 }
 
 // entry returns representations of KBBI search with key `word`
-pub fn (client KbbiClient) entry(c EntryConfig) ![]KbbiResult {
-	response := client.fetch_entry(c)!
+pub fn (c KbbiClient) entry(e EntryConfig) ![]KbbiResult {
+	response := c.fetch_entry(e)!
 
 	document := html.parse(response)
 	document_tags := document.get_tags()
@@ -54,15 +54,15 @@ pub fn (client KbbiClient) entry(c EntryConfig) ![]KbbiResult {
 	return document_tags.filter(it.name == 'h2').map(parse_result(it, container_tags) or {
 		// re-return the error, but replace
 		// the {} placeholder with actual word
-		return error(err.msg().replace_once('{}', c.word))
+		return error(err.msg().replace_once('{}', e.word))
 	})
 }
 
-fn (client KbbiClient) fetch_entry(c EntryConfig) !string {
-	cached_only := &c.cached_only
-	cookie := &client.application_cookie
-	return client.cache_get_or_init(c.word, fn [cached_only, cookie] (word string) !string {
-		if *cached_only {
+fn (c KbbiClient) fetch_entry(e EntryConfig) !string {
+	cached_only := e.cached_only
+	cookie := c.application_cookie
+	return c.cache_get_or_init(e.word, fn [cached_only, cookie] (word string) !string {
+		if cached_only {
 			return error('word `${word}` not cached')
 		}
 
@@ -70,7 +70,7 @@ fn (client KbbiClient) fetch_entry(c EntryConfig) !string {
 			method: .get
 			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
 			cookies: {
-				application_cookie: *cookie
+				application_cookie: cookie
 			}
 		)!.body
 

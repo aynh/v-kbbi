@@ -1,5 +1,6 @@
 module main
 
+import arrays
 import cli
 import client
 import json
@@ -15,6 +16,16 @@ fn main() {
 		// stop spinner if --no-spinner or stderr is not a terminal
 		if cmd.root().flags.get_bool('no-spinner')! || os.is_atty(2) <= 0 {
 			spin.stop()
+		}
+	}
+
+	// wraps the command's callback; stops the spinner before printing errors
+	wrap_cb := fn [spin] (cb cli.FnCommandCallback) cli.FnCommandCallback {
+		return fn [cb, spin] (cmd cli.Command) ! {
+			cb(cmd) or {
+				spin.stop()
+				return err
+			}
 		}
 	}
 
@@ -54,7 +65,7 @@ fn main() {
 		]
 		required_args: 1
 		pre_execute: pre_exec
-		execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
+		execute: wrap_cb(fn [spin] (cmd cli.Command) ! {
 			spin.start()
 
 			no_cache := cmd.flags.get_bool('no-cache')!
@@ -64,18 +75,12 @@ fn main() {
 				client.new_client_from_cache(no_cache: no_cache)!
 			}
 
-			mut results := []client.KbbiResult{}
-			for word in cmd.args {
-				w_results := c.entry(word: word)!
-
-				results << w_results
-			}
-
-			out := process_results(results, cmd)!
+			results := arrays.flatten(cmd.args.map(c.entry(word: it)!))
+			output := process_results(results, cmd)!
 
 			spin.stop()
 
-			println(out)
+			println(output)
 		})
 		commands: [
 			cli.Command{
@@ -83,7 +88,7 @@ fn main() {
 				description: 'Searches cached words.'
 				usage: '<?word>...'
 				pre_execute: pre_exec
-				execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
+				execute: wrap_cb(fn [spin] (cmd cli.Command) ! {
 					spin.start()
 
 					c := client.new_client()!
@@ -94,18 +99,12 @@ fn main() {
 						c.cache_get_all_keys()
 					}
 
-					mut results := []client.KbbiResult{}
-					for word in words {
-						w_results := c.entry(word: word, cached_only: true)!
-
-						results << w_results
-					}
-
-					out := process_results(results, cmd.root())!
+					results := arrays.flatten(words.map(c.entry(word: it, cached_only: true)!))
+					output := process_results(results, cmd.root())!
 
 					spin.stop()
 
-					println(out)
+					println(output)
 				})
 			},
 			cli.Command{
@@ -133,21 +132,20 @@ fn main() {
 					},
 				]
 				pre_execute: pre_exec
-				execute: wrap_cb(spin, fn [spin] (cmd cli.Command) ! {
+				execute: wrap_cb(fn [spin] (cmd cli.Command) ! {
 					username := cmd.flags.get_string('username')!
 					password := cmd.flags.get_string('password')!
 					from_env := cmd.flags.get_bool('from-env')!
 
 					// sanity checks
 					if from_env && (username != '' || password != '') {
-						eprintln("--from-env flag can't be used with --username or --password")
-						exit(1)
+						return error("--from-env can't be used with --username or --password")
 					} else if from_env && cmd.args.len == 2 {
-						eprintln("--from-env flag can't be used with login arguments")
-						exit(1)
+						return error("--from-env can't be used with login arguments")
 					} else if (username != '' || password != '') && cmd.args.len == 2 {
-						eprintln("login arguments can't be used with --username or --password")
-						exit(1)
+						return error("login arguments can't be used with --username or --password")
+					} else if (username != '') != (password != '') {
+						return error('both --username and --password are needed')
 					}
 
 					user, pass := if username != '' && password != '' {
@@ -187,21 +185,11 @@ fn process_results(results []client.KbbiResult, root_cmd &cli.Command) !string {
 	return if root_cmd.flags.get_bool('json')! {
 		json.encode(results)
 	} else {
-		mut out := results.map(format_result).join('\n\n')
+		mut output := results.map(format_result).join('\n\n')
 		if !root_cmd.flags.get_bool('no-color')! && term.can_show_color_on_stdout() {
-			out
+			output
 		} else {
-			term.strip_ansi(out)
-		}
-	}
-}
-
-// wraps the command's callback; stops the spinner before printing errors
-fn wrap_cb(spin spinner.Spinner, cb cli.FnCommandCallback) cli.FnCommandCallback {
-	return fn [cb, spin] (cmd cli.Command) ! {
-		cb(cmd) or {
-			spin.stop()
-			return err
+			term.strip_ansi(output)
 		}
 	}
 }
