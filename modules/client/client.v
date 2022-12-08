@@ -17,6 +17,22 @@ pub struct KbbiClient {
 	cache_db           sqlite.DB
 }
 
+// check_session returns true if session is valid (logged in)
+pub fn (c KbbiClient) check_session() !bool {
+	response := http.fetch(
+		method: .get
+		url: client.login_url
+		cookies: {
+			client.application_cookie: c.application_cookie
+		}
+	)!.body
+
+	document := html.parse(response)
+	forms := document.get_tag('form')
+	return forms.any(it.attributes['id'] == 'logoutForm'
+		&& it.attributes['action'] == '/Account/LogOff')
+}
+
 // save_session saves this `KbbiClient` session (`application_cookie`) into it's `cache_db`
 //
 // afterwards, `KbbiClient` created with `new_client_from_cache` will use this session

@@ -114,9 +114,15 @@ fn main() {
 				flags: [
 					cli.Flag{
 						flag: cli.FlagType.bool
+						name: 'check'
+						abbrev: 'C'
+						description: 'Checks cached login session.'
+					},
+					cli.Flag{
+						flag: cli.FlagType.bool
 						name: 'from-env'
 						abbrev: 'E'
-						description: 'Logins from \$VKBBI_USERNAME and \$VKBBI_PASSWORD environment variable.'
+						description: 'Logins with \$VKBBI_USERNAME and \$VKBBI_PASSWORD environment variable.'
 					},
 					cli.Flag{
 						flag: cli.FlagType.string
@@ -133,6 +139,22 @@ fn main() {
 				]
 				pre_execute: pre_exec
 				execute: wrap_cb(fn [spin] (cmd cli.Command) ! {
+					if cmd.flags.get_bool('check')! {
+						spin.start()
+
+						c := client.new_client_from_cache()!
+						output := if c.check_session()! {
+							'You are logged in'
+						} else {
+							'You are not logged in'
+						}
+
+						spin.stop()
+
+						println(output)
+						return
+					}
+
 					username := cmd.flags.get_string('username')!
 					password := cmd.flags.get_string('password')!
 					from_env := cmd.flags.get_bool('from-env')!
