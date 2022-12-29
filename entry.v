@@ -1,50 +1,60 @@
-module client
+module kbbi
 
 import net.html
 import net.http
+import os
 
-pub struct KbbiResult {
+pub struct Entry {
 pub:
 	title            string
 	word             string
 	nonstandard_word string
 	original_word    string
-	entries          []KbbiEntry
+	entries          []EntryItem
 }
 
-pub struct KbbiEntry {
+pub struct EntryItem {
 pub:
 	description string
-	examples    []KbbiEntryExample
-	kinds       []KbbiEntryKind
+	examples    []EntryExampleItem
+	kinds       []EntryKindItem
 }
 
-pub struct KbbiEntryExample {
+pub struct EntryExampleItem {
 pub:
 	value       string
 	description string
 }
 
-pub struct KbbiEntryKind {
+pub struct EntryKindItem {
 pub:
 	abbreviation string
 	description  string
 }
 
-[params]
-pub struct EntryConfig {
-	word        string [required]
-	cached_only bool
+// entry returns representations of KBBI search with key `word`
+pub fn entry(word string) ![]Entry {
+	return Client{}.entry(word)!
 }
 
 // entry returns representations of KBBI search with key `word`
-pub fn entry(c EntryConfig) ![]KbbiResult {
-	return new_client(no_cache: true)!.entry(c)!
-}
+pub fn (c Client) entry(word string) ![]Entry {
+	mut url := *&entry_url
+	url.set_path(os.join_path(url.escaped_path(), word))!
 
-// entry returns representations of KBBI search with key `word`
-pub fn (c KbbiClient) entry(e EntryConfig) ![]KbbiResult {
-	response := c.fetch_entry(e)!
+	response := http.fetch(
+		method: .get
+		url: url.str()
+		cookies: {
+			cookie_key: c.cookie
+		}
+	)!.body
+
+	if response.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
+		return error('daily search limit reached')
+	} else if response.contains('Entri tidak ditemukan.') {
+		return error('word `${word}` not found')
+	}
 
 	document := html.parse(response)
 	document_tags := document.get_tags()
@@ -54,37 +64,11 @@ pub fn (c KbbiClient) entry(e EntryConfig) ![]KbbiResult {
 	return document_tags.filter(it.name == 'h2').map(parse_result(it, container_tags) or {
 		// re-return the error, but replace
 		// the {} placeholder with actual word
-		return error(err.msg().replace_once('{}', e.word))
+		return error(err.msg().replace_once('{}', word))
 	})
 }
 
-fn (c KbbiClient) fetch_entry(e EntryConfig) !string {
-	cached_only := e.cached_only
-	cookie := c.application_cookie
-	return c.cache_get_or_init(e.word, fn [cached_only, cookie] (word string) !string {
-		if cached_only {
-			return error('word `${word}` not cached')
-		}
-
-		response := http.fetch(
-			method: .get
-			url: 'https://kbbi.kemdikbud.go.id/entri/${word.to_lower()}'
-			cookies: {
-				application_cookie: cookie
-			}
-		)!.body
-
-		if response.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
-			return error('daily search limit reached')
-		} else if response.contains('Entri tidak ditemukan.') {
-			return error('word `${word}` not found')
-		}
-
-		return response
-	})!
-}
-
-fn parse_result(heading_tag &html.Tag, container_tags []&html.Tag) !KbbiResult {
+fn parse_result(heading_tag &html.Tag, container_tags []&html.Tag) !Entry {
 	container_tag := container_tags.filter(it.position_in_parent > heading_tag.position_in_parent)[0]
 
 	title := parse_title(heading_tag)
@@ -93,7 +77,7 @@ fn parse_result(heading_tag &html.Tag, container_tags []&html.Tag) !KbbiResult {
 	original_word := parse_original_word(heading_tag) or { '' }
 	entries := parse_entries(container_tag)!
 
-	return KbbiResult{title, word, nonstandard_word, original_word, entries}
+	return Entry{title, word, nonstandard_word, original_word, entries}
 }
 
 fn parse_title(heading_tag &html.Tag) string {
@@ -127,11 +111,11 @@ fn parse_original_word(heading_tag &html.Tag) ?string {
 	}
 }
 
-fn parse_entries(container_tag &html.Tag) ![]KbbiEntry {
+fn parse_entries(container_tag &html.Tag) ![]EntryItem {
 	return container_tag.get_tags('li').map(parse_entry(it)!).filter(it.description != 'Usulkan makna baru')
 }
 
-fn parse_entry(li_tag &html.Tag) !KbbiEntry {
+fn parse_entry(li_tag &html.Tag) !EntryItem {
 	description := li_tag.get_tags('text')[0].content.trim_space().trim_right(':')
 	if description == '&rarr;' { // &rarr; is →
 		suggestion := li_tag.get_tags('a')[0].content.trim_space()
@@ -140,21 +124,21 @@ fn parse_entry(li_tag &html.Tag) !KbbiEntry {
 		return error('word `{}` not found, did you mean ${suggestion}?')
 	}
 
-	return KbbiEntry{
+	return EntryItem{
 		description: description
 		examples: parse_entry_examples(li_tag)
 		kinds: parse_entry_kinds(li_tag)
 	}
 }
 
-fn parse_entry_kinds(li_tag &html.Tag) []KbbiEntryKind {
-	return li_tag.get_tags('span').map(KbbiEntryKind{
+fn parse_entry_kinds(li_tag &html.Tag) []EntryKindItem {
+	return li_tag.get_tags('span').map(EntryKindItem{
 		abbreviation: it.content.trim_space()
 		description: it.attributes['title']
 	}).filter(it.abbreviation != '')
 }
 
-fn parse_entry_examples(li_tag &html.Tag) []KbbiEntryExample {
+fn parse_entry_examples(li_tag &html.Tag) []EntryExampleItem {
 	contents := li_tag.get_tags('i').map(it.content.trim_space()).filter(it != '')
 
 	if contents.len == 0 {
@@ -165,17 +149,17 @@ fn parse_entry_examples(li_tag &html.Tag) []KbbiEntryExample {
 	// an example may also have description, so
 	// inner_array[0] is the actual example and
 	// inner_array[1] is the description (might be none)
-	mut example_entries := [][]string{len: 1, init: []string{}}
+	mut example_entries := [][]string{len: 1, init: []string{cap: 2}}
 	for content in contents {
 		// examples and their descriptions are divided by a single ';'
 		if content == ';' {
 			// append another empty inner_array into the outer_array
-			example_entries << []string{}
+			example_entries << []string{cap: 2}
 		} else {
 			// append the content to the last inner_array
 			example_entries.last() << content
 		}
 	}
 
-	return example_entries.map(KbbiEntryExample{it[0], it[1] or { '' }})
+	return example_entries.map(EntryExampleItem{it[0], it[1] or { '' }})
 }

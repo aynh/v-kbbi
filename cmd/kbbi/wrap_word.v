@@ -1,10 +1,10 @@
-module wrap_word
+module main
 
 import strings
 import term
 
 [params]
-pub struct WrapWordConfig {
+struct WrapWordConfig {
 	s         string [required]
 	prefix    string
 	indent    int
@@ -14,7 +14,7 @@ pub struct WrapWordConfig {
 // wrap_word wraps string `s` with maximum width `max_width`
 // while adding `prefix` for each lines and indents them by `indent`
 // for each lines after the first one (so 2nd, 3rd, 4th, etc)
-pub fn wrap_word(c WrapWordConfig) string {
+fn wrap_word(c WrapWordConfig) string {
 	expected_lines := (c.s.len / c.max_width) + 1
 	mut builder := strings.new_builder(expected_lines + c.s.len + (c.prefix.len * expected_lines) +
 		(c.indent * expected_lines))

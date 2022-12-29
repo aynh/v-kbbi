@@ -1,5 +1,6 @@
 module spinner
 
+import cli
 import time
 
 const (
@@ -23,13 +24,38 @@ enum SpinnerState {
 	stopped
 }
 
-// new creates a new Spinner.
+// new_spinner creates a new Spinner.
 // the the spinner is paused by default, so you need to call Spinner.start() first.
-pub fn new() Spinner {
+pub fn new_spinner() Spinner {
 	ch := chan SpinnerState{cap: 1}
+
 	return Spinner{
 		ch: ch
-		handle: spawn run(ch)
+		handle: spawn fn (ch chan SpinnerState) {
+			mut state := SpinnerState.paused
+			for i := 0; state != .stopped; {
+				select {
+					msg := <-ch {
+						state = msg
+					}
+					else {
+						if state == .paused {
+							continue
+						}
+
+						c := spinner.chars[i % spinner.chars.len].str()
+						eprintln(' ${c} loading')
+						time.sleep(spinner.interval)
+
+						// term.clear_previous_line()
+						eprint('\r\x1b[1A\x1b[2K')
+						flush_stderr()
+
+						i += 1
+					}
+				}
+			}
+		}(ch)
 	}
 }
 
@@ -60,28 +86,16 @@ pub fn (s Spinner) stop() {
 	}
 }
 
-fn run(ch chan SpinnerState) {
-	mut state := SpinnerState.paused
-	for i := 0; state != .stopped; {
-		select {
-			msg := <-ch {
-				state = msg
-			}
-			else {
-				if state == .paused {
-					continue
-				}
-
-				c := spinner.chars[i % spinner.chars.len].str()
-				eprintln(' ${c} loading')
-				time.sleep(spinner.interval)
-
-				// term.clear_previous_line()
-				eprint('\r\x1b[1A\x1b[2K')
-				flush_stderr()
-
-				i += 1
-			}
+// wrap_command_callback wraps the command's callback
+// adds spinner as parameter; stops the spinner before printing any errors
+pub fn (s Spinner) wrap_command_callback(cb fn (Spinner, cli.Command) !string) cli.FnCommandCallback {
+	return fn [cb, s] (cmd cli.Command) ! {
+		output := cb(s, cmd) or {
+			s.stop()
+			return err
 		}
+
+		s.stop()
+		println(output)
 	}
 }

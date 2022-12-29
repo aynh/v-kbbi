@@ -1,4 +1,4 @@
-module wrap_word
+module main
 
 fn test_wrap_word() {
 	text := 'Lorem ipsum dolor sit amet consectetur adipiscing elit nascetur fusce at commodo, himenaeos nam rutrum nec torquent malesuada iaculis imperdiet diam ullamcorper, tellus suscipit euismod risus habitant aliquet ad faucibus sagittis dictumst. Cursus hendrerit purus cras fermentum non viverra semper, pulvinar tempor ridiculus aliquam posuere auctor cubilia vel, mauris sapien massa aenean mattis id. Vitae varius libero habitasse leo scelerisque porta dui ornare accumsan, condimentum magna sociosqu feugiat ultrices parturient mi pretium, erat sem urna lectus quam per sociis eros. Ligula eget laoreet tristique donec nisi pellentesque maecenas, eleifend arcu tincidunt praesent rhoncus quis, dignissim nullam molestie senectus inceptos nunc.'
