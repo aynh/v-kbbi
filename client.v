@@ -8,15 +8,18 @@ pub mut:
 	cookie string
 }
 
-// is_logged_in returns true if cookies is valid (implies logged in)
-pub fn (c Client) is_logged_in() !bool {
-	response := http.fetch(
-		method: .get
-		url: login_url.str()
+fn (c Client) fetch(config http.FetchConfig) !http.Response {
+	return http.fetch(http.FetchConfig{
+		...config
 		cookies: {
 			cookie_key: c.cookie
 		}
-	)!.body
+	})!
+}
+
+// is_logged_in returns true if cookies is valid (implies logged in)
+pub fn (c Client) is_logged_in() !bool {
+	response := c.fetch(method: .get, url: login_url.str())!.body
 
 	document := html.parse(response)
 	forms := document.get_tag('form')

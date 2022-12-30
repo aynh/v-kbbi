@@ -1,7 +1,6 @@
 module kbbi
 
 import net.html
-import net.http
 import os
 
 pub struct Entry {
@@ -42,13 +41,7 @@ pub fn (c Client) entry(word string) ![]Entry {
 	mut url := *&entry_url
 	url.set_path(os.join_path(url.escaped_path(), word))!
 
-	response := http.fetch(
-		method: .get
-		url: url.str()
-		cookies: {
-			cookie_key: c.cookie
-		}
-	)!.body
+	response := c.fetch(method: .get, url: url.str())!.body
 
 	if response.contains('Pencarian Anda telah mencapai batas maksimum dalam sehari') {
 		return error('daily search limit reached')

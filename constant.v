@@ -8,6 +8,6 @@ pub const (
 )
 
 const (
-	cookie_key = '.AspNet.ApplicationCookie'
+	cookie_key         = '.AspNet.ApplicationCookie'
 	verification_token = '__RequestVerificationToken'
 )
