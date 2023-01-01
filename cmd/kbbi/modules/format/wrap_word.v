@@ -1,4 +1,4 @@
-module main
+module format
 
 import strings
 import term

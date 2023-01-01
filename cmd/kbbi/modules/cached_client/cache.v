@@ -1,12 +1,13 @@
-module main
+module cached_client
 
 import json
+import kbbi
 import os
 import sqlite
 import time
 import v.vmod
 
-const login_cache_key = '__login'
+pub const login_key = '__login'
 
 [table: 'cache']
 struct EntryCache {
@@ -39,12 +40,12 @@ fn new_cache_db() !sqlite.DB {
 	return db
 }
 
-fn get_cache_keys(db sqlite.DB) []string {
-	caches := sql db {
+pub fn (c CachedClient) get_cache_keys() []string {
+	caches := sql c.cache_db {
 		select from EntryCache
 	}
 
-	return caches.map(it.key).filter(it != login_cache_key)
+	return caches.map(it.key).filter(it != cached_client.login_key)
 }
 
 fn get_cache_str(db sqlite.DB, key string) ?string {
@@ -55,22 +56,22 @@ fn get_cache_str(db sqlite.DB, key string) ?string {
 	return cache.value
 }
 
-fn get_cache[T](db sqlite.DB, key string) ?T {
-	return json.decode(T, get_cache_str(db, key) or { '' }) or { none }
+pub fn (c CachedClient) get_cache[T](key string) ?T {
+	return json.decode(T, get_cache_str(c.cache_db, key) or { '' }) or { none }
 }
 
-fn get_cache_or_init[T](db sqlite.DB, key string, init fn (string) !T) !T {
-	return get_cache[T](db, key) or {
-		value := init(key)!
-		set_cache(db, key, value)
+pub fn (c CachedClient) get_cache_or_init[T](key string, init fn (kbbi.Client, string) !T) !T {
+	return c.get_cache[T](key) or {
+		value := init(c.inner, key)!
+		c.set_cache(key, value)
 
 		value
 	}
 }
 
-fn set_cache[T](db sqlite.DB, key string, value T) {
+pub fn (c CachedClient) set_cache[T](key string, value T) {
 	cache := new_entry_cache(key, value)
-	sql db {
+	sql c.cache_db {
 		insert cache into EntryCache
 	}
 }

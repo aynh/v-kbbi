@@ -1,7 +1,9 @@
 module main
 
 import cli
+import cached_client { new_cached_client }
 import kbbi
+import format { format_entry }
 import json
 import os
 import spinner { Spinner }
@@ -57,7 +59,7 @@ fn main() {
 		execute: spinner.wrap_command_callback(fn (spinner Spinner, cmd cli.Command) !string {
 			spinner.start()
 
-			client, cache_db := new_client(
+			client := new_cached_client(
 				no_cache: cmd.flags.get_bool('no-cache')!
 				no_login: cmd.flags.get_bool('no-login')!
 			)
@@ -65,8 +67,8 @@ fn main() {
 			words := cmd.args
 			mut results := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
-				results << get_cache_or_init(cache_db, word, fn [client] (word string) ![]kbbi.Entry {
-					return client.entry(word)!
+				results << client.get_cache_or_init(word, fn (c kbbi.Client, word string) ![]kbbi.Entry {
+					return c.entry(word)!
 				})!
 			}
 
@@ -82,17 +84,17 @@ fn main() {
 		execute: spinner.wrap_command_callback(fn (spinner Spinner, cmd cli.Command) !string {
 			spinner.start()
 
-			_, cache_db := new_client()
+			client := new_cached_client()
 
 			words := if cmd.args.len > 0 {
 				cmd.args
 			} else {
-				get_cache_keys(cache_db)
+				client.get_cache_keys()
 			}
 
 			mut results := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
-				results << get_cache[[]kbbi.Entry](cache_db, word) or {
+				results << client.get_cache[[]kbbi.Entry](word) or {
 					return error('word `${word}` not cached')
 				}
 			}
@@ -124,8 +126,8 @@ fn main() {
 			if cmd.flags.get_bool('check')! {
 				spinner.start()
 
-				client, _ := new_client()
-				return if client.is_logged_in()! {
+				client := new_cached_client()
+				return if client.inner.is_logged_in()! {
 					'You are logged in'
 				} else {
 					'You are not logged in'
@@ -159,9 +161,9 @@ fn main() {
 
 			spinner.start()
 
-			cache_db := new_cache_db()!
-			client := kbbi.new_client_from_login(username: user, password: pass)!
-			set_cache(cache_db, login_cache_key, client.cookie)
+			client := new_cached_client()
+			inner_client := kbbi.new_client_from_login(username: user, password: pass)!
+			client.set_cache(cached_client.login_key, inner_client.cookie)
 
 			return 'Successfully logged in'
 		})

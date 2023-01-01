@@ -1,4 +1,4 @@
-module main
+module format
 
 import arrays { map_indexed }
 import kbbi { Entry, EntryExampleItem, EntryItem }
@@ -6,7 +6,7 @@ import math
 import strings
 import term
 
-fn format_entry(e Entry) string {
+pub fn format_entry(e Entry) string {
 	mut builder := strings.new_builder(0)
 
 	heading := if e.original_word == '' {
