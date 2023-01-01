@@ -16,8 +16,6 @@ jobs:
       group: ${{ github.workflow }}-${{ github.ref }}
     steps:
       - uses: Aynh/setup-v@fix/deprecated-warning
-        with:
-          stable: true
 
       - uses: actions/checkout@v3
 
