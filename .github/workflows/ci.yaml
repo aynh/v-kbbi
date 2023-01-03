@@ -32,8 +32,11 @@ jobs:
         name: Install SQLite Dependency
         shell: bash
         run: |
+          SQLITE_DIR="$(which v)/thirdparty/sqlite"
+          mkdir -p "$SQLITE_DIR"
+
           curl -so sqlite.zip https://sqlite.org/2022/sqlite-amalgamation-3400000.zip
-          unzip -qqjd "$(which v)/thirdparty/sqlite" sqlite.zip
+          unzip -qqjd "$SQLITE_DIR" sqlite.zip
 
       - uses: actions/checkout@v3
 
