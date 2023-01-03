@@ -41,8 +41,9 @@ jobs:
 
       - uses: actions/checkout@v3
 
-      - name: Install kbbi module
-        run: v install --git "$(realpath .)"
+      - name: Install local kbbi module
+        shell: bash
+        run: v install --git "$PWD"
 
       - name: Check if code is formatted
         run: |
@@ -59,13 +60,12 @@ jobs:
 
       - name: Build cmd/kbbi
         run: |
+          BIN=kbbi
           if [[ ${{ matrix.name }} == windows ]]; then
             BIN=kbbi.exe;
-          else
-            BIN=kbbi;
           fi
 
-          if [[ ${{ startsWith(github.ref , 'refs/tags/v') }} ]]; then
+          if [[ ${{ startsWith(github.ref , 'refs/tags/v') }} == true ]]; then
             export VFLAGS=-prod;
           fi
 
