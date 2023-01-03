@@ -62,7 +62,7 @@ jobs:
             BIN=kbbi.exe;
           fi
 
-          if [[ ${{ startsWith(github.ref , 'refs/tags/v') }} == true ]]; then
+          if [[ ${{ !startsWith(github.ref , 'refs/tags/v') }} == true ]]; then
             export VFLAGS=-prod;
           fi
 
