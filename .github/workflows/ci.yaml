@@ -52,22 +52,33 @@ jobs:
       - name: Run Tests
         run: v test .
 
-      - if: ${{ !startsWith(github.ref , 'refs/tags/v') }}
-        name: Build ${{ github.event.repository.name }} (debug)
-        run: v .
+      - name: Check kbbi module and cmd/kbbi
+        run: |
+          v -check -shared .
+          v -check cmd/kbbi
 
-      - if: startsWith(github.ref, 'refs/tags/v')
-        name: Build ${{ github.event.repository.name }} (release)
-        run: v -prod .
+      - name: Build cmd/kbbi
+        run: |
+          if [[ ${{ matrix.name }} == windows ]]; then
+            BIN=kbbi.exe;
+          else
+            BIN=kbbi;
+          fi
+
+          if [[ ${{ startsWith(github.ref , 'refs/tags/v') }} ]]; then
+            export VFLAGS=-prod;
+          fi
+
+          v -output $BIN cmd/kbbi
 
       - if: (matrix.name == 'linux') || (matrix.name == 'macos')
         name: Tar build artifact
-        run: tar cf vkbbi.tar vkbbi
+        run: tar cf kbbi.tar kbbi
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v3
         with:
           name: ${{ matrix.name }}-binary
           path: |
-            vkbbi.exe
-            vkbbi.tar
+            kbbi.exe
+            kbbi.tar
