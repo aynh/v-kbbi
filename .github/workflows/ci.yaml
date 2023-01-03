@@ -28,8 +28,6 @@ jobs:
     steps:
       - uses: Aynh/setup-v@fix/deprecated-warning
         id: setup-v
-        with:
-          stable: true
 
       - if: matrix.name == 'windows'
         name: Install SQLite Dependency
@@ -42,6 +40,9 @@ jobs:
           mv "$V_THIRDPARTY/$SQLITE" "$V_THIRDPARTY/sqlite"
 
       - uses: actions/checkout@v3
+
+      - name: Install kbbi module
+        run: v install --git "$(realpath .)"
 
       - name: Check if code is formatted
         run: |
