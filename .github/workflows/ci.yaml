@@ -1,0 +1,81 @@
+name: CI
+
+on:
+  push:
+    tags:
+      - "v[0-9]+.*"
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    strategy:
+      matrix:
+        os: [ubuntu-22.04, macos-12, windows-2022]
+        include:
+          - os: ubuntu-22.04
+            name: linux
+          - os: macos-12
+            name: macos
+          - os: windows-2022
+            name: windows
+
+    runs-on: ${{ matrix.os }}
+    continue-on-error: true
+
+    steps:
+      - uses: Aynh/setup-v@fix/deprecated-warning
+
+      - if: matrix.name == 'windows'
+        name: Install SQLite Dependency
+        shell: bash
+        run: |
+          curl -so sqlite.zip https://sqlite.org/2022/sqlite-amalgamation-3400000.zip
+          unzip -qqjd "$(dirname $(which v))/thirdparty/sqlite" sqlite.zip
+
+      - uses: actions/checkout@v3
+
+      - name: Install local kbbi module
+        shell: bash
+        run: v install --git "$PWD"
+
+      - name: Check if code is formatted
+        run: |
+          v fmt -diff .
+          v fmt -verify .
+
+      - name: Run Tests
+        run: v test .
+
+      - name: Check kbbi module and cmd/kbbi
+        run: |
+          v -check -shared .
+          v -check cmd/kbbi
+
+      - name: Build cmd/kbbi
+        shell: bash
+        run: |
+          BIN=kbbi
+          if [[ ${{ matrix.name }} == windows ]]; then
+            BIN=kbbi.exe;
+          fi
+
+          if [[ ${{ startsWith(github.ref , 'refs/tags/v') }} == true ]]; then
+            export VFLAGS=-prod;
+          fi
+
+          v -output $BIN cmd/kbbi
+
+      - if: (matrix.name == 'linux') || (matrix.name == 'macos')
+        name: Tar build artifact
+        run: tar cf kbbi.tar kbbi
+
+      - name: Upload build artifact
+        uses: actions/upload-artifact@v3
+        with:
+          name: ${{ matrix.name }}-binary
+          path: |
+            kbbi.exe
+            kbbi.tar
