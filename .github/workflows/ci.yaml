@@ -59,6 +59,7 @@ jobs:
           v -check cmd/kbbi
 
       - name: Build cmd/kbbi
+        shell: bash
         run: |
           BIN=kbbi
           if [[ ${{ matrix.name }} == windows ]]; then
