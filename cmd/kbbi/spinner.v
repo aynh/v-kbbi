@@ -1,6 +1,7 @@
 module spinner
 
 import cli
+import term
 import time
 
 const (
@@ -110,7 +111,10 @@ fn (s Spinner) send(v SpinnerMessage) bool {
 // adds spinner as parameter; stops the spinner before printing any errors
 pub fn (s Spinner) wrap_command_callback(cb fn (Spinner, cli.Command) !string) cli.FnCommandCallback {
 	return fn [cb, s] (cmd cli.Command) ! {
-		output := cb(s, cmd) or { err.str() }
+		output := cb(s, cmd) or {
+			error := term.ecolorize(term.bright_red, 'ERROR:')
+			'${error} ${err.msg()}'
+		}
 
 		s.stop()
 		println(output)
