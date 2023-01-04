@@ -13,7 +13,7 @@ const (
 [noinit]
 pub struct Spinner {
 	// the channel used to communicate with this Spinner's thread
-	ch chan SpinnerState
+	ch chan SpinnerMessage
 	// the thread this Spinner's spawned
 	handle thread
 }
@@ -24,19 +24,25 @@ enum SpinnerState {
 	stopped
 }
 
+type SpinnerMessage = SpinnerState | string
+
 // new_spinner creates a new Spinner.
 // the the spinner is paused by default, so you need to call Spinner.start() first.
 pub fn new_spinner() Spinner {
-	ch := chan SpinnerState{cap: 1}
+	ch := chan SpinnerMessage{cap: 1}
 
 	return Spinner{
 		ch: ch
-		handle: spawn fn (ch chan SpinnerState) {
+		handle: spawn fn (ch chan SpinnerMessage) {
 			mut state := SpinnerState.paused
+			mut message := 'loading'
 			for i := 0; state != .stopped; {
 				select {
-					msg := <-ch {
-						state = msg
+					received := <-ch {
+						match received {
+							SpinnerState { state = received }
+							string { message = received }
+						}
 					}
 					else {
 						if state == .paused {
@@ -44,7 +50,7 @@ pub fn new_spinner() Spinner {
 						}
 
 						c := spinner.chars[i % spinner.chars.len].str()
-						eprintln(' ${c} loading')
+						eprintln(' ${c} ${message}')
 						time.sleep(spinner.interval)
 
 						// term.clear_previous_line()
@@ -61,8 +67,7 @@ pub fn new_spinner() Spinner {
 
 // pause pauses the spinner
 pub fn (s Spinner) pause() {
-	if !s.ch.closed {
-		s.ch <- SpinnerState.paused
+	if s.set_state(.paused) {
 		// wait until the spinner actually stops
 		time.sleep(spinner.interval)
 	}
@@ -70,30 +75,42 @@ pub fn (s Spinner) pause() {
 
 // start starts the spinner
 pub fn (s Spinner) start() {
-	if !s.ch.closed {
-		s.ch <- SpinnerState.started
-	}
+	s.set_state(.started)
 }
 
 // stop stops the spinner
 //
 // the spinner is unusable after calling this
 pub fn (s Spinner) stop() {
-	if !s.ch.closed {
-		s.ch <- SpinnerState.stopped
+	if s.set_state(.stopped) {
 		s.handle.wait()
 		s.ch.close()
 	}
+}
+
+// set_message sets the message of the Spinner
+pub fn (s Spinner) set_message(ss string) bool {
+	return s.send(SpinnerMessage(ss))
+}
+
+fn (s Spinner) set_state(state SpinnerState) bool {
+	return s.send(SpinnerMessage(state))
+}
+
+fn (s Spinner) send(v SpinnerMessage) bool {
+	if s.ch.closed {
+		return false
+	}
+
+	s.ch <- v
+	return true
 }
 
 // wrap_command_callback wraps the command's callback
 // adds spinner as parameter; stops the spinner before printing any errors
 pub fn (s Spinner) wrap_command_callback(cb fn (Spinner, cli.Command) !string) cli.FnCommandCallback {
 	return fn [cb, s] (cmd cli.Command) ! {
-		output := cb(s, cmd) or {
-			s.stop()
-			return err
-		}
+		output := cb(s, cmd) or { err.str() }
 
 		s.stop()
 		println(output)

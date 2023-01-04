@@ -65,14 +65,15 @@ fn main() {
 			)
 
 			words := cmd.args
-			mut results := []kbbi.Entry{cap: words.len * 5}
+			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
-				results << client.get_cache_or_init(word, fn (c kbbi.Client, word string) ![]kbbi.Entry {
+				spinner.set_message('fetching `${word}`')
+				entries << client.get_cache_or_init(word, fn (c kbbi.Client, word string) ![]kbbi.Entry {
 					return c.entry(word)!
 				})!
 			}
 
-			return process_entries(results, cmd)!
+			return process_entries(entries, cmd)!
 		})
 	}
 
@@ -92,14 +93,15 @@ fn main() {
 				client.get_cache_keys()
 			}
 
-			mut results := []kbbi.Entry{cap: words.len * 5}
+			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
-				results << client.get_cache[[]kbbi.Entry](word) or {
+				spinner.set_message('getting `${word}` cache')
+				entries << client.get_cache[[]kbbi.Entry](word) or {
 					return error('word `${word}` not cached')
 				}
 			}
 
-			return process_entries(results, cmd)!
+			return process_entries(entries, cmd)!
 		})
 	})
 
@@ -127,6 +129,8 @@ fn main() {
 				spinner.start()
 
 				client := new_cached_client()
+
+				spinner.set_message('checking cached login')
 				return if client.inner.is_logged_in()! {
 					'You are logged in'
 				} else {
@@ -162,6 +166,8 @@ fn main() {
 			spinner.start()
 
 			client := new_cached_client()
+
+			spinner.set_message('trying to log in')
 			inner_client := kbbi.new_client_from_login(username: user, password: pass)!
 			client.set_cache(cached_client.login_key, inner_client.cookie)
 
