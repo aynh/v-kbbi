@@ -6,12 +6,20 @@ import kbbi
 import format { format_entry }
 import json
 import os
-import spinner { Spinner }
+import pending { Spinner, new_spinner }
 import term
+import time
 import v.vmod
 
 fn main() {
-	spinner := spinner.new_spinner()
+	spinner := LSpinner(new_spinner(
+		frames: "___-``'´-___".runes()
+		interval: 70 * time.millisecond
+		initial_state: pending.SpinnerState{
+			prefix: ' '
+			paused: true
+		}
+	))
 
 	pre_execute := fn [spinner] (cmd cli.Command) ! {
 		// stop spinner if --no-spinner or stderr is not a terminal
@@ -56,7 +64,7 @@ fn main() {
 		]
 		required_args: 1
 		pre_execute: pre_execute
-		execute: spinner.wrap_command_callback(fn (spinner Spinner, cmd cli.Command) !string {
+		execute: spinner.wrap_execute_callback(fn (spinner LSpinner, cmd cli.Command) !string {
 			spinner.start()
 
 			client := new_cached_client(
@@ -67,7 +75,7 @@ fn main() {
 			words := cmd.args
 			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
-				spinner.set_message('fetching `${word}`')
+				spinner.set_suffix(' fetching `${word}`')
 				entries << client.get_cache_or_init(word, fn (c kbbi.Client, word string) ![]kbbi.Entry {
 					return c.entry(word)!
 				})!
@@ -82,7 +90,7 @@ fn main() {
 		description: 'Searches cached words.'
 		usage: '<?word>...'
 		pre_execute: pre_execute
-		execute: spinner.wrap_command_callback(fn (spinner Spinner, cmd cli.Command) !string {
+		execute: spinner.wrap_execute_callback(fn (spinner LSpinner, cmd cli.Command) !string {
 			spinner.start()
 
 			client := new_cached_client()
@@ -95,7 +103,7 @@ fn main() {
 
 			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
-				spinner.set_message('getting `${word}` cache')
+				spinner.set_suffix(' getting `${word}` cache')
 				entries << client.get_cache[[]kbbi.Entry](word) or {
 					return error('word `${word}` not cached')
 				}
@@ -124,13 +132,13 @@ fn main() {
 			},
 		]
 		pre_execute: pre_execute
-		execute: spinner.wrap_command_callback(fn (spinner Spinner, cmd cli.Command) !string {
+		execute: spinner.wrap_execute_callback(fn (spinner LSpinner, cmd cli.Command) !string {
 			if cmd.flags.get_bool('check')! {
 				spinner.start()
 
 				client := new_cached_client()
 
-				spinner.set_message('checking cached login')
+				spinner.set_suffix(' checking cached login')
 				return if client.inner.is_logged_in()! {
 					'You are logged in'
 				} else {
@@ -167,7 +175,7 @@ fn main() {
 
 			client := new_cached_client()
 
-			spinner.set_message('trying to log in')
+			spinner.set_suffix(' trying to log in')
 			inner_client := kbbi.new_client_from_login(username: user, password: pass)!
 			client.set_cache(cached_client.login_key, inner_client.cookie)
 
@@ -191,5 +199,21 @@ fn process_entries(results []kbbi.Entry, cmd &cli.Command) !string {
 		} else {
 			output
 		}
+	}
+}
+
+type LSpinner = Spinner
+
+// wrap_execute_callback wraps the command's execute callback
+// adds spinner as parameter; stops the spinner before printing any errors
+fn (s LSpinner) wrap_execute_callback(cb fn (LSpinner, cli.Command) !string) cli.FnCommandCallback {
+	return fn [cb, s] (cmd cli.Command) ! {
+		output := cb(s, cmd) or {
+			error := term.ecolorize(term.bright_red, 'ERROR:')
+			'${error} ${err.msg()}'
+		}
+
+		s.stop()
+		println(output)
 	}
 }
