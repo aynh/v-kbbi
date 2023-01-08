@@ -40,8 +40,11 @@ jobs:
       - name: Install modules
         shell: bash
         run: |
-          v install
+          # install kbbi modules globally
           v install --git "$PWD"
+
+          # install cmd/kbbi dependencies
+          env -C cmd/kbbi v install
 
       - name: Check if code is formatted
         run: |
