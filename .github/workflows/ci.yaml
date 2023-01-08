@@ -44,7 +44,7 @@ jobs:
           v install --git "$PWD"
 
           # install cmd/kbbi dependencies
-          env -C cmd/kbbi v install
+          cd cmd/kbbi && v install
 
       - name: Check if code is formatted
         run: |
