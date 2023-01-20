@@ -3,7 +3,7 @@ module cached_client
 import json
 import kbbi
 import os
-import sqlite
+import db.sqlite
 import time
 import v.vmod
 

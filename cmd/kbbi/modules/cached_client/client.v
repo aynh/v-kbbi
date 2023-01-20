@@ -1,7 +1,7 @@
 module cached_client
 
 import kbbi
-import sqlite
+import db.sqlite
 
 [heap]
 pub struct CachedClient {
