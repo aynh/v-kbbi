@@ -5,8 +5,8 @@ import db.sqlite
 
 [heap]
 pub struct CachedClient {
+	kbbi.Client
 pub:
-	inner    kbbi.Client
 	cache_db sqlite.DB
 }
 

@@ -1,7 +1,7 @@
 module main
 
 import cli
-import cached_client { new_cached_client }
+import cached_client { CachedClient, new_cached_client }
 import kbbi
 import format { format_entry }
 import json
@@ -76,7 +76,7 @@ fn main() {
 			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
 				spinner.set_suffix(' fetching `${word}`')
-				entries << client.get_cache_or_init(word, fn (c kbbi.Client, word string) ![]kbbi.Entry {
+				entries << client.get_cache_or_init(word, fn (c CachedClient, word string) ![]kbbi.Entry {
 					return c.entry(word)!
 				})!
 			}
@@ -139,7 +139,7 @@ fn main() {
 				client := new_cached_client()
 
 				spinner.set_suffix(' checking cached login')
-				return if client.inner.is_logged_in()! {
+				return if client.is_logged_in()! {
 					'You are logged in'
 				} else {
 					'You are not logged in'

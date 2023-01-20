@@ -1,7 +1,6 @@
 module cached_client
 
 import json
-import kbbi
 import os
 import db.sqlite
 import time
@@ -60,9 +59,9 @@ pub fn (c CachedClient) get_cache[T](key string) ?T {
 	return json.decode(T, get_cache_str(c.cache_db, key) or { '' }) or { none }
 }
 
-pub fn (c CachedClient) get_cache_or_init[T](key string, init fn (kbbi.Client, string) !T) !T {
+pub fn (c CachedClient) get_cache_or_init[T](key string, init fn (CachedClient, string) !T) !T {
 	return c.get_cache[T](key) or {
-		value := init(c.inner, key)!
+		value := init(c, key)!
 		c.set_cache(key, value)
 
 		value
