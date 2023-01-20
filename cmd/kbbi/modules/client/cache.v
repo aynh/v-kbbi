@@ -1,4 +1,4 @@
-module cached_client
+module client
 
 import json
 import os
@@ -39,12 +39,12 @@ fn new_cache_db() !sqlite.DB {
 	return db
 }
 
-pub fn (c CachedClient) get_cache_keys() []string {
+pub fn (c IClient) get_cache_keys() []string {
 	caches := sql c.cache_db {
 		select from EntryCache
 	}
 
-	return caches.map(it.key).filter(it != cached_client.login_key)
+	return caches.map(it.key).filter(it != client.login_key)
 }
 
 fn get_cache_str(db sqlite.DB, key string) ?string {
@@ -55,20 +55,20 @@ fn get_cache_str(db sqlite.DB, key string) ?string {
 	return cache.value
 }
 
-pub fn (c CachedClient) get_cache[T](key string) ?T {
+pub fn (c IClient) get_cache[T](key string) ?T {
 	return json.decode(T, get_cache_str(c.cache_db, key) or { '' }) or { none }
 }
 
-pub fn (c CachedClient) get_cache_or_init[T](key string, init fn (CachedClient, string) !T) !T {
+pub fn (c IClient) get_cache_or_init[T](key string, init fn (client IClient, key string) !T) !T {
 	return c.get_cache[T](key) or {
 		value := init(c, key)!
-		c.set_cache(key, value)
+		c.set_cache[T](key, value)
 
 		value
 	}
 }
 
-pub fn (c CachedClient) set_cache[T](key string, value T) {
+pub fn (c IClient) set_cache[T](key string, value T) {
 	cache := new_entry_cache(key, value)
 	sql c.cache_db {
 		insert cache into EntryCache

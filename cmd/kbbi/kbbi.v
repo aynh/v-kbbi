@@ -1,7 +1,7 @@
 module main
 
 import cli
-import cached_client { CachedClient, new_cached_client }
+import client { IClient, new_kbbi_client }
 import kbbi
 import format { format_entry }
 import json
@@ -44,7 +44,7 @@ fn main() {
 			cli.Flag{
 				flag: cli.FlagType.bool
 				name: 'no-cache'
-				description: 'Ignores cached response.'
+				description: 'Ignores cached responses.'
 			},
 			cli.Flag{
 				flag: cli.FlagType.bool
@@ -67,7 +67,7 @@ fn main() {
 		execute: spinner.wrap_execute_callback(fn (spinner LSpinner, cmd cli.Command) !string {
 			spinner.start()
 
-			client := new_cached_client(
+			client := new_kbbi_client(
 				no_cache: cmd.flags.get_bool('no-cache')!
 				no_login: cmd.flags.get_bool('no-login')!
 			)
@@ -76,7 +76,7 @@ fn main() {
 			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
 				spinner.set_suffix(' fetching `${word}`')
-				entries << client.get_cache_or_init(word, fn (c CachedClient, word string) ![]kbbi.Entry {
+				entries << client.get_cache_or_init(word, fn (c IClient, word string) ![]kbbi.Entry {
 					return c.entry(word)!
 				})!
 			}
@@ -93,7 +93,7 @@ fn main() {
 		execute: spinner.wrap_execute_callback(fn (spinner LSpinner, cmd cli.Command) !string {
 			spinner.start()
 
-			client := new_cached_client()
+			client := new_kbbi_client()
 
 			words := if cmd.args.len > 0 {
 				cmd.args
@@ -136,7 +136,7 @@ fn main() {
 			if cmd.flags.get_bool('check')! {
 				spinner.start()
 
-				client := new_cached_client()
+				client := new_kbbi_client()
 
 				spinner.set_suffix(' checking cached login')
 				return if client.is_logged_in()! {
@@ -173,11 +173,9 @@ fn main() {
 
 			spinner.start()
 
-			client := new_cached_client()
-
 			spinner.set_suffix(' trying to log in')
-			inner_client := kbbi.new_client_from_login(username: user, password: pass)!
-			client.set_cache(cached_client.login_key, inner_client.cookie)
+			c := kbbi.new_client_from_login(username: user, password: pass)!
+			new_kbbi_client().set_cache(client.login_key, c.cookie)
 
 			return 'Successfully logged in'
 		})

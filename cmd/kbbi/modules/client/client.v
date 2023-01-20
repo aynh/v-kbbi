@@ -1,10 +1,10 @@
-module cached_client
+module client
 
 import kbbi
 import db.sqlite
 
 [heap]
-pub struct CachedClient {
+pub struct IClient {
 	kbbi.Client
 pub:
 	cache_db sqlite.DB
@@ -16,7 +16,7 @@ pub struct NewClientConfig {
 	no_login bool
 }
 
-pub fn new_cached_client(c NewClientConfig) CachedClient {
+pub fn new_kbbi_client(c NewClientConfig) IClient {
 	db := if c.no_cache {
 		sqlite.DB{}
 	} else {
@@ -32,5 +32,5 @@ pub fn new_cached_client(c NewClientConfig) CachedClient {
 		}
 	}
 
-	return CachedClient{client, db}
+	return IClient{client, db}
 }
