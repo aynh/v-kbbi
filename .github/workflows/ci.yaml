@@ -26,7 +26,7 @@ jobs:
     continue-on-error: true
 
     steps:
-      - uses: Aynh/setup-v@fix/deprecated-warning
+      - uses: vlang/setup-v@v1.3
 
       - if: matrix.name == 'windows'
         name: Install SQLite Dependency
