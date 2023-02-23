@@ -67,7 +67,7 @@ fn main() {
 		execute: spinner.wrap_execute_callback(fn (spinner LSpinner, cmd cli.Command) !string {
 			spinner.start()
 
-			client := new_kbbi_client(
+			client_ := new_kbbi_client(
 				no_cache: cmd.flags.get_bool('no-cache')!
 				no_login: cmd.flags.get_bool('no-login')!
 			)
@@ -76,7 +76,7 @@ fn main() {
 			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
 				spinner.set_suffix(' fetching `${word}`')
-				entries << client.get_cache_or_init(word, fn (c IClient, word string) ![]kbbi.Entry {
+				entries << client_.get_cache_or_init(word, fn (c IClient, word string) ![]kbbi.Entry {
 					return c.entry(word)!
 				})!
 			}
@@ -93,18 +93,18 @@ fn main() {
 		execute: spinner.wrap_execute_callback(fn (spinner LSpinner, cmd cli.Command) !string {
 			spinner.start()
 
-			client := new_kbbi_client()
+			client_ := new_kbbi_client()
 
 			words := if cmd.args.len > 0 {
 				cmd.args
 			} else {
-				client.get_cache_keys()
+				client_.get_cache_keys()
 			}
 
 			mut entries := []kbbi.Entry{cap: words.len * 5}
 			for word in words {
 				spinner.set_suffix(' getting `${word}` cache')
-				entries << client.get_cache[[]kbbi.Entry](word) or {
+				entries << client_.get_cache[[]kbbi.Entry](word) or {
 					return error('word `${word}` not cached')
 				}
 			}
@@ -136,10 +136,10 @@ fn main() {
 			if cmd.flags.get_bool('check')! {
 				spinner.start()
 
-				client := new_kbbi_client()
+				client_ := new_kbbi_client()
 
 				spinner.set_suffix(' checking cached login')
-				return if client.is_logged_in()! {
+				return if client_.is_logged_in()! {
 					'You are logged in'
 				} else {
 					'You are not logged in'
